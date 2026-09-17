@@ -69,6 +69,7 @@ Full details, including PostgreSQL/Redis setup and troubleshooting, are in
 
 ## Documentation
 
+- [REPO_MAP.md](REPO_MAP.md) - what each folder is for (start here if you're new)
 - [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) - complete local dev environment guide (Linux + macOS)
 - [ARCHITECTURE.md](ARCHITECTURE.md) - system architecture and roadmap
 - [UPDATING.md](UPDATING.md) - upstream Superset breaking-changes log (inherited; add our own entries here going forward)

@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Starts the full local dev stack (backend + frontend, optionally the
+# Celery worker) in one command, from the repo root:
+#
+#   ./bin/dev              # backend (:8088) + frontend (:9000)
+#   ./bin/dev --with-worker  # also starts a Celery worker
+#
+# Assumes one-time setup from DEVELOPMENT_SETUP.md is already done
+# (.venv created + deps installed, superset-frontend/node_modules
+# installed, .env created from .env.example, DB initialized).
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+WITH_WORKER=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-worker) WITH_WORKER=true ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      echo "Usage: $0 [--with-worker]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  if [ -f .venv/bin/activate ]; then
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+  else
+    echo "No .venv found and no virtualenv active. See DEVELOPMENT_SETUP.md #4." >&2
+    exit 1
+  fi
+fi
+
+if [ ! -f .env ]; then
+  echo "No .env found. Run: cp .env.example .env, then edit it. See DEVELOPMENT_SETUP.md #10." >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source scripts/dev_env.sh
+
+if [ ! -d superset-frontend/node_modules ]; then
+  echo "superset-frontend/node_modules missing. Run: (cd superset-frontend && npm ci). See DEVELOPMENT_SETUP.md #9." >&2
+  exit 1
+fi
+
+pids=()
+cleanup() {
+  echo
+  echo "==> Shutting down dev stack"
+  for pid in "${pids[@]}"; do
+    kill "$pid" 2>/dev/null || true
+  done
+  wait 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+echo "==> Starting backend on :${SUPERSET_WEBSERVER_PORT:-8088}"
+./scripts/run_backend.sh &
+pids+=("$!")
+
+if [ "$WITH_WORKER" = true ]; then
+  echo "==> Starting Celery worker"
+  ./scripts/run_worker.sh &
+  pids+=("$!")
+fi
+
+echo "==> Starting frontend dev server on :9000"
+(cd superset-frontend && npm run dev-server) &
+pids+=("$!")
+
+wait -n "${pids[@]}"

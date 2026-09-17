@@ -53,7 +53,8 @@ venv*
 env_py3
 envpy3
 local_config.py
-/superset_config.py
+# Note: unlike upstream, we intentionally track /superset_config.py - it
+# contains no secrets (everything comes from `.env`, which stays ignored).
 /superset_text.yml
 superset.egg-info/
 superset/bin/supersetc

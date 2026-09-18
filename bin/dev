@@ -47,6 +47,20 @@ if [ ! -d superset-frontend/node_modules ]; then
   exit 1
 fi
 
+BACKEND_PORT="${SUPERSET_WEBSERVER_PORT:-8088}"
+FRONTEND_PORT="${WEBPACK_DEVSERVER_PORT:-9000}"
+
+port_in_use() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; } || return 1
+}
+for p in "$BACKEND_PORT" "$FRONTEND_PORT"; do
+  if port_in_use "$p"; then
+    echo "Port $p is already in use by something else on this machine." >&2
+    echo "Set SUPERSET_WEBSERVER_PORT / WEBPACK_DEVSERVER_PORT (+ matching supersetPort) in .env to free ports, or stop whatever's bound to $p." >&2
+    exit 1
+  fi
+done
+
 pids=()
 cleanup() {
   echo
@@ -58,7 +72,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "==> Starting backend on :${SUPERSET_WEBSERVER_PORT:-8088}"
+echo "==> Starting backend on :${BACKEND_PORT}"
 ./scripts/run_backend.sh &
 pids+=("$!")
 
@@ -68,7 +82,7 @@ if [ "$WITH_WORKER" = true ]; then
   pids+=("$!")
 fi
 
-echo "==> Starting frontend dev server on :9000"
+echo "==> Starting frontend dev server on :${FRONTEND_PORT}"
 (cd superset-frontend && npm run dev-server) &
 pids+=("$!")
 

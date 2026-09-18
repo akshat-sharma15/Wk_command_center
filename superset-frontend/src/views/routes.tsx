@@ -187,6 +187,31 @@ const RedirectWarning = lazy(
     ),
 );
 
+const IntegrationList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "IntegrationList" */ 'src/pages/IntegrationList'
+    ),
+);
+
+const EventList = lazy(
+  () => import(/* webpackChunkName: "EventList" */ 'src/pages/EventList'),
+);
+
+const ActionAlertList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "ActionAlertList" */ 'src/pages/ActionAlertList'
+    ),
+);
+
+const NotificationDetail = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "NotificationDetail" */ 'src/pages/NotificationDetail'
+    ),
+);
+
 type Routes = {
   path: string;
   Component: ComponentType;
@@ -329,6 +354,22 @@ export const routes: Routes = [
   {
     path: '/registrations/',
     Component: UserRegistrations,
+  },
+  {
+    path: '/integration/list/',
+    Component: IntegrationList,
+  },
+  {
+    path: '/event/list/',
+    Component: EventList,
+  },
+  {
+    path: '/action-alert/list/',
+    Component: ActionAlertList,
+  },
+  {
+    path: '/notification/:notificationId',
+    Component: NotificationDetail,
   },
 ];
 

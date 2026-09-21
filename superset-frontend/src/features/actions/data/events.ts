@@ -17,79 +17,131 @@
  * under the License.
  */
 import { t } from '@apache-superset/core/translation';
-import { createMockStore } from './mockStore';
+import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
+import { extendedDayjs } from '@superset-ui/core/utils/dates';
 import { EventRecord } from './types';
 
-const INITIAL_EVENTS: EventRecord[] = [
-  {
-    id: 1,
-    name: 'Inbound truck arrival',
-    description: 'Fires when an inbound truck checks in at any hub.',
-    groupId: 'hubs',
-    eventTypeId: 'hubs__inbound_truck',
-    status: 'Active',
-    changed_by_name: 'Marco Diaz',
-    changed_on_delta_humanized: '1 day ago',
-  },
-  {
-    id: 2,
-    name: 'Hub parking full',
-    description: 'Fires when a hub reaches parking capacity.',
-    groupId: 'hubs',
-    eventTypeId: 'hubs__parking_space',
-    status: 'Active',
-    changed_by_name: 'Priya Nair',
-    changed_on_delta_humanized: '4 days ago',
-  },
-  {
-    id: 3,
-    name: 'Truck accident reported',
-    description: 'Fires when a driver reports an accident.',
-    groupId: 'fleet',
-    eventTypeId: 'fleet__accident',
-    status: 'Draft',
-    changed_by_name: 'Jordan Lee',
-    changed_on_delta_humanized: '2 weeks ago',
-  },
-  {
-    id: 4,
-    name: 'Low attendance today',
-    description: 'Fires when shift attendance drops below threshold.',
-    groupId: 'workforce',
-    eventTypeId: 'workforce__low_attendance',
-    status: 'Inactive',
-    changed_by_name: 'Alice Kim',
-    changed_on_delta_humanized: '1 month ago',
-  },
-  {
-    id: 5,
-    name: 'Payment overdue',
-    description: 'Fires when an invoice becomes overdue.',
-    groupId: 'finance',
-    eventTypeId: 'finance__payment_dues',
-    status: 'Active',
-    changed_by_name: 'Marco Diaz',
-    changed_on_delta_humanized: '6 days ago',
-  },
-];
+// The Command Center Rails API is a separate backend/origin from Superset
+// itself (see backend ARCHITECTURE.md + config/initializers/cors.rb,
+// which allows this frontend's origin specifically). `host`/`mode` are
+// passed per-call rather than configuring a second SupersetClient
+// instance, since every other call in this app should keep hitting
+// Superset's own backend unaffected.
+const COMMAND_CENTER_API_HOST = 'localhost:3001';
+const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
-const store = createMockStore<EventRecord>(INITIAL_EVENTS);
+interface BackendEventDefinition {
+  id: number;
+  name: string;
+  group: string;
+  type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const toEventRecord = (item: BackendEventDefinition): EventRecord => ({
+  id: item.id,
+  name: item.name,
+  groupId: item.group,
+  eventTypeId: item.type,
+  changed_on_delta_humanized: extendedDayjs.utc(item.updated_at).fromNow(),
+});
+
+// EventDefinition's validation errors come back as `{ error: [...] }` (or
+// occasionally a bare string) - join array messages into one readable line
+// rather than letting them stringify as "msg1,msg2".
+const describeError = (error: unknown): string =>
+  Array.isArray(error) ? error.join(', ') : String(error);
+
+async function reportError(
+  response: unknown,
+  addDangerToast: (message: string) => void,
+  fallback: string,
+) {
+  try {
+    const { error } = await getClientErrorObject(
+      response as Parameters<typeof getClientErrorObject>[0],
+    );
+    const detail = (error as { error?: unknown })?.error;
+    addDangerToast(detail ? describeError(detail) : fallback);
+  } catch {
+    addDangerToast(fallback);
+  }
+}
+
+export const fetchEvents = async (
+  addDangerToast: (message: string) => void,
+): Promise<EventRecord[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/events',
+    });
+    return (json as BackendEventDefinition[]).map(toEventRecord);
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching events'));
+    return [];
+  }
+};
 
 export interface NewEventInput {
   name: string;
-  description: string;
   groupId: string;
   eventTypeId: string;
 }
 
-export const fetchEvents = (): Promise<EventRecord[]> => store.list();
+const toEventPayload = (input: NewEventInput) => ({
+  event: {
+    name: input.name,
+    group: input.groupId,
+    type: input.eventTypeId,
+  },
+});
 
-export const createEvent = (input: NewEventInput): Promise<EventRecord> =>
-  store.create({
-    ...input,
-    status: 'Draft',
-    changed_by_name: t('you'),
-    changed_on_delta_humanized: t('now'),
-  });
+export const createEvent = async (
+  input: NewEventInput,
+  addDangerToast: (message: string) => void,
+): Promise<EventRecord | null> => {
+  try {
+    const { json } = await SupersetClient.post({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/events',
+      jsonPayload: toEventPayload(input),
+    });
+    return toEventRecord(json as BackendEventDefinition);
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while creating event'));
+    return null;
+  }
+};
 
-export const deleteEvent = (id: number): Promise<void> => store.remove(id);
+export const updateEvent = async (
+  id: number,
+  input: NewEventInput,
+  addDangerToast: (message: string) => void,
+): Promise<EventRecord | null> => {
+  try {
+    const { json } = await SupersetClient.put({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/events/${id}`,
+      jsonPayload: toEventPayload(input),
+    });
+    return toEventRecord(json as BackendEventDefinition);
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while updating event'));
+    return null;
+  }
+};
+
+export const deleteEvent = async (
+  id: number,
+  addDangerToast: (message: string) => void,
+): Promise<boolean> => {
+  try {
+    await SupersetClient.delete({ ...CROSS_ORIGIN, endpoint: `/api/v1/events/${id}` });
+    return true;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while deleting event'));
+    return false;
+  }
+};

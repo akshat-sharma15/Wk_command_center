@@ -22,16 +22,14 @@ import { css, styled } from '@apache-superset/core/theme';
 import { Input, Modal, Select } from '@superset-ui/core/components';
 import { ModalTitleWithIcon } from 'src/components/ModalTitleWithIcon';
 import { EVENT_GROUP_OPTIONS, getEventTypeOptions } from './data/eventGroups';
+import { EventRecord } from './data/types';
 
 interface EventModalProps {
   show: boolean;
   onHide: () => void;
-  onSave: (input: {
-    name: string;
-    description: string;
-    groupId: string;
-    eventTypeId: string;
-  }) => void;
+  onSave: (input: { name: string; groupId: string; eventTypeId: string }) => void;
+  /** When set, the modal edits this event instead of creating a new one. */
+  event?: EventRecord | null;
 }
 
 const FieldContainer = styled.div(
@@ -49,11 +47,18 @@ const FieldContainer = styled.div(
   `,
 );
 
-export default function EventModal({ show, onHide, onSave }: EventModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [groupId, setGroupId] = useState<string | undefined>(undefined);
-  const [eventTypeId, setEventTypeId] = useState<string | undefined>(undefined);
+export default function EventModal({
+  show,
+  onHide,
+  onSave,
+  event,
+}: EventModalProps) {
+  const isEditMode = Boolean(event);
+  const [name, setName] = useState(event?.name ?? '');
+  const [groupId, setGroupId] = useState<string | undefined>(event?.groupId);
+  const [eventTypeId, setEventTypeId] = useState<string | undefined>(
+    event?.eventTypeId,
+  );
 
   const eventTypeOptions = useMemo(
     () => (groupId ? getEventTypeOptions(groupId) : []),
@@ -64,10 +69,6 @@ export default function EventModal({ show, onHide, onSave }: EventModalProps) {
     setName(event.target.value);
   };
 
-  const handleDescriptionChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(event.target.value);
-  };
-
   const handleGroupChange = (value: string) => {
     setGroupId(value);
     // Clear the previously selected Event whenever the Group changes.
@@ -76,7 +77,7 @@ export default function EventModal({ show, onHide, onSave }: EventModalProps) {
 
   const handleSave = () => {
     if (!groupId || !eventTypeId) return;
-    onSave({ name, description, groupId, eventTypeId });
+    onSave({ name, groupId, eventTypeId });
   };
 
   return (
@@ -84,13 +85,13 @@ export default function EventModal({ show, onHide, onSave }: EventModalProps) {
       disablePrimaryButton={!name || !groupId || !eventTypeId}
       onHandledPrimaryAction={handleSave}
       onHide={onHide}
-      primaryButtonName={t('Create')}
+      primaryButtonName={isEditMode ? t('Save') : t('Create')}
       show={show}
       width="55%"
       title={
         <ModalTitleWithIcon
-          isEditMode={false}
-          title={t('Create Event')}
+          isEditMode={isEditMode}
+          title={isEditMode ? t('Edit Event') : t('Create Event')}
           data-test="event-modal-title"
         />
       }
@@ -106,16 +107,6 @@ export default function EventModal({ show, onHide, onSave }: EventModalProps) {
           onChange={handleNameChange}
           type="text"
           value={name}
-        />
-      </FieldContainer>
-      <FieldContainer>
-        <div className="control-label">{t('Description')}</div>
-        <Input.TextArea
-          name="description"
-          data-test="event-description-input"
-          onChange={handleDescriptionChange}
-          rows={4}
-          value={description}
         />
       </FieldContainer>
       <FieldContainer>

@@ -726,7 +726,7 @@ const RightMenu = ({
       />
       {!navbarRight.user_is_anonymous && (
         <>
-          <NotificationBell size={24} />
+          <NotificationBell />
           <span>&nbsp;</span>
         </>
       )}

@@ -31,10 +31,10 @@ import {
 import withToasts from 'src/components/MessageToasts/withToasts';
 import { actionMenuData } from 'src/features/home/actionMenuData';
 import { useMockListState } from 'src/features/actions/hooks/useMockListState';
-import StatusLabel from 'src/features/actions/components/StatusLabel';
 import {
   fetchEvents,
   createEvent,
+  updateEvent,
   deleteEvent,
 } from 'src/features/actions/data/events';
 import {
@@ -57,44 +57,48 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
   const [loading, setLoading] = useState(true);
   const refreshData = useCallback(() => {
     setLoading(true);
-    fetchEvents().then(items => {
+    fetchEvents(addDangerToast).then(items => {
       setEvents(items);
       setLoading(false);
     });
-  }, []);
+  }, [addDangerToast]);
   useEffect(() => {
     refreshData();
   }, [refreshData]);
   const { rows, count, fetchData } = useMockListState<EventRecord>(events);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [modalInstanceKey, setModalInstanceKey] = useState(0);
+  const [eventBeingEdited, setEventBeingEdited] = useState<EventRecord | null>(
+    null,
+  );
   const [eventCurrentlyDeleting, setEventCurrentlyDeleting] =
     useState<EventRecord | null>(null);
 
-  const handleCreate = useCallback(
-    (input: {
-      name: string;
-      description: string;
-      groupId: string;
-      eventTypeId: string;
-    }) => {
-      createEvent(input).then(() => {
-        setCreateModalOpen(false);
+  const handleSave = useCallback(
+    (input: { name: string; groupId: string; eventTypeId: string }) => {
+      const save = eventBeingEdited
+        ? updateEvent(eventBeingEdited.id, input, addDangerToast)
+        : createEvent(input, addDangerToast);
+      save.then(saved => {
+        if (!saved) return; // error already toasted by data/events.ts
+        setModalOpen(false);
+        setEventBeingEdited(null);
         refreshData();
-        addSuccessToast(t('Event created'));
+        addSuccessToast(eventBeingEdited ? t('Event updated') : t('Event created'));
       });
     },
-    [refreshData, addSuccessToast],
+    [eventBeingEdited, refreshData, addSuccessToast, addDangerToast],
   );
 
   const handleDeleteConfirm = useCallback(() => {
     if (!eventCurrentlyDeleting) return;
-    deleteEvent(eventCurrentlyDeleting.id).then(() => {
+    deleteEvent(eventCurrentlyDeleting.id, addDangerToast).then(success => {
+      if (!success) return;
       addSuccessToast(t('Deleted: %s', eventCurrentlyDeleting.name));
       setEventCurrentlyDeleting(null);
       refreshData();
     });
-  }, [eventCurrentlyDeleting, refreshData, addSuccessToast]);
+  }, [eventCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
 
   const columns = useMemo(
     () => [
@@ -117,28 +121,6 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         size: 'lg',
       },
       {
-        Cell: ({ row: { original } }: { row: { original: EventRecord } }) => (
-          <StatusLabel status={original.status} />
-        ),
-        accessor: 'status',
-        Header: t('Status'),
-        id: 'status',
-        size: 'sm',
-      },
-      {
-        accessor: 'description',
-        Header: t('Description'),
-        id: 'description',
-        disableSortBy: true,
-        size: 'xxl',
-      },
-      {
-        accessor: 'changed_by_name',
-        Header: t('Modified by'),
-        id: 'changed_by_name',
-        size: 'lg',
-      },
-      {
         accessor: 'changed_on_delta_humanized',
         Header: t('Last modified'),
         id: 'changed_on_delta_humanized',
@@ -147,6 +129,17 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
       {
         Cell: ({ row: { original } }: { row: { original: EventRecord } }) => {
           const actions: ListViewActionProps[] = [
+            {
+              label: 'edit-action',
+              tooltip: t('Edit event'),
+              placement: 'bottom',
+              icon: 'EditOutlined',
+              onClick: () => {
+                setEventBeingEdited(original);
+                setModalInstanceKey(key => key + 1);
+                setModalOpen(true);
+              },
+            },
             {
               label: 'delete-action',
               tooltip: t('Delete event'),
@@ -187,18 +180,6 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
           value: group.id,
         })),
       },
-      {
-        Header: t('Status'),
-        key: 'status',
-        id: 'status',
-        input: 'select',
-        operator: FilterOperator.Equals,
-        unfilteredLabel: t('All'),
-        selects: (['Active', 'Inactive', 'Draft'] as const).map(status => ({
-          label: status,
-          value: status,
-        })),
-      },
     ],
     [],
   );
@@ -214,8 +195,9 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
             icon: <Icons.PlusOutlined iconSize="m" />,
             name: t('Event'),
             onClick: () => {
+              setEventBeingEdited(null);
               setModalInstanceKey(key => key + 1);
-              setCreateModalOpen(true);
+              setModalOpen(true);
             },
             buttonStyle: 'primary',
           },
@@ -223,9 +205,13 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
       />
       <EventModal
         key={modalInstanceKey}
-        show={createModalOpen}
-        onHide={() => setCreateModalOpen(false)}
-        onSave={handleCreate}
+        show={modalOpen}
+        event={eventBeingEdited}
+        onHide={() => {
+          setModalOpen(false);
+          setEventBeingEdited(null);
+        }}
+        onSave={handleSave}
       />
       {eventCurrentlyDeleting && (
         <DeleteModal

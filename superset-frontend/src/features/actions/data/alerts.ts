@@ -17,63 +17,214 @@
  * under the License.
  */
 import { t } from '@apache-superset/core/translation';
-import { createMockStore } from './mockStore';
-import { AlertRecord, EntityRef } from './types';
+import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
+import {
+  AlertRuleRecord,
+  AlertRuleGroupOption,
+  AlertRuleFieldOption,
+} from './types';
 
-const INITIAL_ALERTS: AlertRecord[] = [
-  {
-    id: 1,
-    name: 'Truck accident escalation',
-    description: 'Notifies fleet ops when an accident event fires.',
-    status: 'Active',
-    event: { id: 3, name: 'Truck accident reported' },
-    role: { id: 1, name: 'Admin' },
-    integration: { id: 1, name: 'Slack notifications' },
-    changed_by_name: 'Marco Diaz',
-    changed_on_delta_humanized: '3 days ago',
-  },
-  {
-    id: 2,
-    name: 'Overdue payment alert',
-    description: 'Notifies finance when a payment becomes overdue.',
-    status: 'Active',
-    event: { id: 5, name: 'Payment overdue' },
-    role: { id: 1, name: 'Admin' },
-    integration: { id: 3, name: 'Finance weekly digest' },
-    changed_by_name: 'Priya Nair',
-    changed_on_delta_humanized: '1 week ago',
-  },
-  {
-    id: 3,
-    name: 'Hub capacity warning',
-    description: 'Notifies hub managers when parking fills up.',
-    status: 'Draft',
-    event: { id: 2, name: 'Hub parking full' },
-    role: { id: 1, name: 'Admin' },
-    integration: { id: 2, name: 'Ops escalation channel' },
-    changed_by_name: 'Jordan Lee',
-    changed_on_delta_humanized: '2 weeks ago',
-  },
-];
+// See data/events.ts for why this is needed: the Command Center Rails API
+// is a separate backend/origin from Superset itself.
+const COMMAND_CENTER_API_HOST = 'localhost:3001';
+const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
-const store = createMockStore<AlertRecord>(INITIAL_ALERTS);
+const describeError = (error: unknown): string =>
+  Array.isArray(error) ? error.join(', ') : String(error);
 
-export interface NewAlertInput {
-  name: string;
-  description: string;
-  event: EntityRef;
-  role: EntityRef;
-  integration: EntityRef;
+async function reportError(
+  response: unknown,
+  addDangerToast: (message: string) => void,
+  fallback: string,
+) {
+  try {
+    const { error } = await getClientErrorObject(
+      response as Parameters<typeof getClientErrorObject>[0],
+    );
+    const detail = (error as { error?: unknown })?.error;
+    addDangerToast(detail ? describeError(detail) : fallback);
+  } catch {
+    addDangerToast(fallback);
+  }
 }
 
-export const fetchAlerts = (): Promise<AlertRecord[]> => store.list();
+// --- AlertRule CRUD --------------------------------------------------
 
-export const createAlert = (input: NewAlertInput): Promise<AlertRecord> =>
-  store.create({
-    ...input,
-    status: 'Draft',
-    changed_by_name: t('you'),
-    changed_on_delta_humanized: t('now'),
-  });
+export const fetchAlertRules = async (
+  addDangerToast: (message: string) => void,
+): Promise<AlertRuleRecord[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/alert-rules',
+    });
+    return json as AlertRuleRecord[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching alerts'));
+    return [];
+  }
+};
 
-export const deleteAlert = (id: number): Promise<void> => store.remove(id);
+export interface AlertRuleInput {
+  name: string;
+  group: string;
+  field: string;
+  operator: string;
+  value: string | number | boolean;
+  severity: string;
+  eventDefinitionId: number | null;
+  notify: boolean;
+  recipientType: string | null;
+  recipientId: number | null;
+  notificationChannels: string[];
+  enabled: boolean;
+}
+
+const toAlertRulePayload = (input: AlertRuleInput) => ({
+  alert_rule: {
+    name: input.name,
+    group: input.group,
+    field: input.field,
+    operator: input.operator,
+    value: input.value,
+    severity: input.severity,
+    event_definition_id: input.eventDefinitionId,
+    notify: input.notify,
+    recipient_type: input.notify ? input.recipientType : null,
+    recipient_id: input.notify ? input.recipientId : null,
+    notification_channels: input.notify ? input.notificationChannels : [],
+    enabled: input.enabled,
+  },
+});
+
+export const createAlertRule = async (
+  input: AlertRuleInput,
+  addDangerToast: (message: string) => void,
+): Promise<AlertRuleRecord | null> => {
+  try {
+    const { json } = await SupersetClient.post({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/alert-rules',
+      jsonPayload: toAlertRulePayload(input),
+    });
+    return json as AlertRuleRecord;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while creating alert'));
+    return null;
+  }
+};
+
+export const updateAlertRule = async (
+  id: number,
+  input: AlertRuleInput,
+  addDangerToast: (message: string) => void,
+): Promise<AlertRuleRecord | null> => {
+  try {
+    const { json } = await SupersetClient.put({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/alert-rules/${id}`,
+      jsonPayload: toAlertRulePayload(input),
+    });
+    return json as AlertRuleRecord;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while updating alert'));
+    return null;
+  }
+};
+
+export const deleteAlertRule = async (
+  id: number,
+  addDangerToast: (message: string) => void,
+): Promise<boolean> => {
+  try {
+    await SupersetClient.delete({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/alert-rules/${id}`,
+    });
+    return true;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while deleting alert'));
+    return false;
+  }
+};
+
+// --- Alert Builder metadata (group -> field -> operator/options) -----
+
+export const fetchAlertGroups = async (
+  addDangerToast: (message: string) => void,
+): Promise<AlertRuleGroupOption[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/alert-resources',
+    });
+    return json as AlertRuleGroupOption[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching alert groups'));
+    return [];
+  }
+};
+
+export const fetchAlertGroupFields = async (
+  group: string,
+  addDangerToast: (message: string) => void,
+): Promise<AlertRuleFieldOption[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/alert-resources/${encodeURIComponent(group)}/fields`,
+    });
+    return json as AlertRuleFieldOption[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching fields'));
+    return [];
+  }
+};
+
+/**
+ * Returns null (deliberately, no toast) when the field has no finite
+ * option set - the backend returns 422 for most fields (e.g. numeric
+ * ones), which is an expected, common response here, not an error to
+ * surface to the user.
+ */
+export const fetchAlertGroupFieldOptions = async (
+  group: string,
+  field: string,
+): Promise<string[] | null> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/alert-resources/${encodeURIComponent(group)}/fields/${encodeURIComponent(field)}/options`,
+    });
+    return json as string[];
+  } catch {
+    return null;
+  }
+};
+
+// --- Recipients --------------------------------------------------------
+// Roles intentionally are NOT fetched here - see data/roles.ts, which
+// keeps using Superset's own existing `/api/v1/security/roles/` API, per
+// explicit instruction not to duplicate that integration.
+
+export interface AlertRecipientUser {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+}
+
+export const fetchAlertRecipientUsers = async (
+  addDangerToast: (message: string) => void,
+): Promise<AlertRecipientUser[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/alert-recipients/users',
+    });
+    return json as AlertRecipientUser[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching users'));
+    return [];
+  }
+};

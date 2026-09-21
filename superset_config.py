@@ -94,6 +94,16 @@ CELERY_CONFIG = CeleryConfig
 SUPERSET_ENV = os.environ.get("SUPERSET_ENV", "development")
 ENABLE_PROXY_FIX = False
 
+TALISMAN_ENABLED = True
+
+CONTENT_SECURITY_POLICY = {
+    "default-src": ["'self'"],
+    "connect-src": [
+        "'self'",
+        "http://localhost:3001",
+    ],
+}
+
 # --- Branding: Webkorps Command Central ---
 _BRAND_NAME = "Command Central"
 _BRAND_LOGO_PATH = "/static/assets/images/command-central-logo.png"
@@ -125,3 +135,29 @@ def _rebrand_theme(theme: dict | None) -> dict | None:
 
 THEME_DEFAULT = _rebrand_theme(_DEFAULT_THEME_DEFAULT)
 THEME_DARK = _rebrand_theme(_DEFAULT_THEME_DARK)
+
+# --- CSP: allow the Command Center Rails API (separate origin) ---
+# The frontend's Action tab (src/features/actions/data/*.ts) talks directly
+# to a Rails API on a different origin. Without this, Talisman's CSP
+# connect-src blocks those fetches even though the Rails side allows the
+# request via CORS.
+from superset.config import TALISMAN_CONFIG as _DEFAULT_TALISMAN_CONFIG  # noqa: E402
+from superset.config import (  # noqa: E402
+    TALISMAN_DEV_CONFIG as _DEFAULT_TALISMAN_DEV_CONFIG,
+)
+
+_COMMAND_CENTER_API_ORIGIN = os.environ.get(
+    "COMMAND_CENTER_API_ORIGIN", "http://localhost:3001"
+)
+
+
+def _allow_command_center_origin(talisman_config: dict) -> dict:
+    config = copy.deepcopy(talisman_config)
+    config["content_security_policy"]["connect-src"].append(
+        _COMMAND_CENTER_API_ORIGIN
+    )
+    return config
+
+
+TALISMAN_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_CONFIG)
+TALISMAN_DEV_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_DEV_CONFIG)

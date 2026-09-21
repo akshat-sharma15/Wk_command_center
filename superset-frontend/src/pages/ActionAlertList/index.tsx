@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import { DeleteModal } from '@superset-ui/core/components';
+import { DeleteModal, Label } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
 import {
@@ -31,16 +31,22 @@ import {
 import withToasts from 'src/components/MessageToasts/withToasts';
 import { actionMenuData } from 'src/features/home/actionMenuData';
 import { useMockListState } from 'src/features/actions/hooks/useMockListState';
-import StatusLabel from 'src/features/actions/components/StatusLabel';
 import {
-  fetchAlerts,
-  createAlert,
-  deleteAlert,
+  fetchAlertRules,
+  createAlertRule,
+  updateAlertRule,
+  deleteAlertRule,
 } from 'src/features/actions/data/alerts';
-import { AlertRecord, EntityRef } from 'src/features/actions/data/types';
+import { AlertRuleRecord } from 'src/features/actions/data/types';
 import AlertModal from 'src/features/actions/AlertModal';
 
 const PAGE_SIZE = 25;
+
+const SEVERITY_LABEL_TYPE: Record<string, 'default' | 'warning' | 'error'> = {
+  info: 'default',
+  warning: 'warning',
+  critical: 'error',
+};
 
 interface ActionAlertListProps {
   addDangerToast: (msg: string) => void;
@@ -51,102 +57,139 @@ function ActionAlertList({
   addDangerToast,
   addSuccessToast,
 }: ActionAlertListProps) {
-  const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+  const [alerts, setAlerts] = useState<AlertRuleRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const refreshData = useCallback(() => {
     setLoading(true);
-    fetchAlerts().then(items => {
+    fetchAlertRules(addDangerToast).then(items => {
       setAlerts(items);
       setLoading(false);
     });
-  }, []);
+  }, [addDangerToast]);
   useEffect(() => {
     refreshData();
   }, [refreshData]);
-  const { rows, count, fetchData } = useMockListState<AlertRecord>(alerts);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const { rows, count, fetchData } = useMockListState<AlertRuleRecord>(alerts);
+  const [modalOpen, setModalOpen] = useState(false);
   const [modalInstanceKey, setModalInstanceKey] = useState(0);
+  const [alertBeingEdited, setAlertBeingEdited] =
+    useState<AlertRuleRecord | null>(null);
   const [alertCurrentlyDeleting, setAlertCurrentlyDeleting] =
-    useState<AlertRecord | null>(null);
+    useState<AlertRuleRecord | null>(null);
 
-  const handleCreate = useCallback(
-    (input: {
-      name: string;
-      description: string;
-      event: EntityRef;
-      role: EntityRef;
-      integration: EntityRef;
-    }) => {
-      createAlert(input).then(() => {
-        setCreateModalOpen(false);
+  const handleSave = useCallback(
+    (input: Parameters<typeof createAlertRule>[0]) => {
+      const save = alertBeingEdited
+        ? updateAlertRule(alertBeingEdited.id, input, addDangerToast)
+        : createAlertRule(input, addDangerToast);
+      save.then(saved => {
+        if (!saved) return; // error already toasted by data/alerts.ts
+        setModalOpen(false);
+        setAlertBeingEdited(null);
         refreshData();
-        addSuccessToast(t('Alert created'));
+        addSuccessToast(alertBeingEdited ? t('Alert updated') : t('Alert created'));
       });
     },
-    [refreshData, addSuccessToast],
+    [alertBeingEdited, refreshData, addSuccessToast, addDangerToast],
   );
 
   const handleDeleteConfirm = useCallback(() => {
     if (!alertCurrentlyDeleting) return;
-    deleteAlert(alertCurrentlyDeleting.id).then(() => {
+    deleteAlertRule(alertCurrentlyDeleting.id, addDangerToast).then(success => {
+      if (!success) return;
       addSuccessToast(t('Deleted: %s', alertCurrentlyDeleting.name));
       setAlertCurrentlyDeleting(null);
       refreshData();
     });
-  }, [alertCurrentlyDeleting, refreshData, addSuccessToast]);
+  }, [alertCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
 
   const columns = useMemo(
     () => [
       { accessor: 'name', Header: t('Name'), id: 'name', size: 'xl' },
       {
-        accessor: 'event.name',
+        accessor: 'group_label',
+        Header: t('Group'),
+        id: 'group_label',
+        size: 'lg',
+      },
+      {
+        accessor: 'field_label',
+        Header: t('Field'),
+        id: 'field_label',
+        size: 'lg',
+      },
+      {
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: AlertRuleRecord };
+        }) => `${original.operator} ${original.value}`,
+        Header: t('Condition'),
+        id: 'condition',
+        disableSortBy: true,
+        size: 'md',
+      },
+      {
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: AlertRuleRecord };
+        }) => original.event_definition_name ?? '',
+        accessor: 'event_definition_name',
         Header: t('Event'),
-        id: 'event.name',
+        id: 'event_definition_name',
         size: 'lg',
       },
       {
-        accessor: 'role.name',
-        Header: t('Role'),
-        id: 'role.name',
-        size: 'lg',
-      },
-      {
-        accessor: 'integration.name',
-        Header: t('Integration'),
-        id: 'integration.name',
-        size: 'lg',
-      },
-      {
-        Cell: ({ row: { original } }: { row: { original: AlertRecord } }) => (
-          <StatusLabel status={original.status} />
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: AlertRuleRecord };
+        }) => (
+          <Label type={SEVERITY_LABEL_TYPE[original.severity] ?? 'default'}>
+            {original.severity}
+          </Label>
         ),
-        accessor: 'status',
-        Header: t('Status'),
-        id: 'status',
+        accessor: 'severity',
+        Header: t('Severity'),
+        id: 'severity',
         size: 'sm',
       },
       {
-        accessor: 'description',
-        Header: t('Description'),
-        id: 'description',
-        disableSortBy: true,
-        size: 'xxl',
-      },
-      {
-        accessor: 'changed_by_name',
-        Header: t('Modified by'),
-        id: 'changed_by_name',
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: AlertRuleRecord };
+        }) => (original.notify ? original.recipient_name ?? '' : ''),
+        accessor: 'recipient_name',
+        Header: t('Recipient'),
+        id: 'recipient_name',
         size: 'lg',
       },
       {
-        accessor: 'changed_on_delta_humanized',
+        accessor: 'updated_at',
         Header: t('Last modified'),
-        id: 'changed_on_delta_humanized',
+        id: 'updated_at',
         size: 'lg',
       },
       {
-        Cell: ({ row: { original } }: { row: { original: AlertRecord } }) => {
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: AlertRuleRecord };
+        }) => {
           const actions: ListViewActionProps[] = [
+            {
+              label: 'edit-action',
+              tooltip: t('Edit alert'),
+              placement: 'bottom',
+              icon: 'EditOutlined',
+              onClick: () => {
+                setAlertBeingEdited(original);
+                setModalInstanceKey(key => key + 1);
+                setModalOpen(true);
+              },
+            },
             {
               label: 'delete-action',
               tooltip: t('Delete alert'),
@@ -176,15 +219,15 @@ function ActionAlertList({
         operator: FilterOperator.Contains,
       },
       {
-        Header: t('Status'),
-        key: 'status',
-        id: 'status',
+        Header: t('Severity'),
+        key: 'severity',
+        id: 'severity',
         input: 'select',
         operator: FilterOperator.Equals,
         unfilteredLabel: t('All'),
-        selects: (['Active', 'Inactive', 'Draft'] as const).map(status => ({
-          label: status,
-          value: status,
+        selects: ['info', 'warning', 'critical'].map(severity => ({
+          label: severity,
+          value: severity,
         })),
       },
     ],
@@ -202,8 +245,9 @@ function ActionAlertList({
             icon: <Icons.PlusOutlined iconSize="m" />,
             name: t('Alert'),
             onClick: () => {
+              setAlertBeingEdited(null);
               setModalInstanceKey(key => key + 1);
-              setCreateModalOpen(true);
+              setModalOpen(true);
             },
             buttonStyle: 'primary',
           },
@@ -212,9 +256,13 @@ function ActionAlertList({
       <AlertModal
         key={modalInstanceKey}
         addDangerToast={addDangerToast}
-        show={createModalOpen}
-        onHide={() => setCreateModalOpen(false)}
-        onSave={handleCreate}
+        show={modalOpen}
+        alertRule={alertBeingEdited}
+        onHide={() => {
+          setModalOpen(false);
+          setAlertBeingEdited(null);
+        }}
+        onSave={handleSave}
       />
       {alertCurrentlyDeleting && (
         <DeleteModal
@@ -227,7 +275,7 @@ function ActionAlertList({
           title={t('Delete %s?', alertCurrentlyDeleting.name)}
         />
       )}
-      <ListView<AlertRecord>
+      <ListView<AlertRuleRecord>
         className="alert-list-view"
         columns={columns}
         data={rows}

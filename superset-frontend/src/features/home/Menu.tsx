@@ -451,23 +451,28 @@ export default function MenuWrapper({ data, ...rest }: MenuProps) {
 
   // Insert the "Action" tab (Integration/Event/Alert) beside the SQL tab.
   // This is added client-side, rather than via the backend menu config,
-  // so it stays isolated from the existing SQL/Dataset menu wiring.
-  const actionMenuItem: MenuObjectProps = {
-    name: 'Action',
-    label: t('Action'),
-    childs: [
-      {
-        name: 'Integration',
-        label: t('Integration'),
-        url: ACTION_INTEGRATION_PATH,
-      },
-      { name: 'Event', label: t('Event'), url: ACTION_EVENT_PATH },
-      { name: 'Alert', label: t('Alert'), url: ACTION_ALERT_PATH },
-    ],
-  };
-  const sqlMenuIndex = cleanedMenu.findIndex(item => item.label === 'SQL');
-  const insertAt = sqlMenuIndex === -1 ? cleanedMenu.length : sqlMenuIndex + 1;
-  cleanedMenu.splice(insertAt, 0, actionMenuItem);
+  // so it stays isolated from the existing SQL/Dataset menu wiring. Like
+  // every other tab, it must only show once the user is logged in -
+  // gate it the same way RightMenu.tsx gates its own items.
+  if (!newMenuData.navbar_right.user_is_anonymous) {
+    const actionMenuItem: MenuObjectProps = {
+      name: 'Action',
+      label: t('Action'),
+      childs: [
+        {
+          name: 'Integration',
+          label: t('Integration'),
+          url: ACTION_INTEGRATION_PATH,
+        },
+        { name: 'Event', label: t('Event'), url: ACTION_EVENT_PATH },
+        { name: 'Alert', label: t('Alert'), url: ACTION_ALERT_PATH },
+      ],
+    };
+    const sqlMenuIndex = cleanedMenu.findIndex(item => item.label === 'SQL');
+    const insertAt =
+      sqlMenuIndex === -1 ? cleanedMenu.length : sqlMenuIndex + 1;
+    cleanedMenu.splice(insertAt, 0, actionMenuItem);
+  }
 
   newMenuData.menu = cleanedMenu;
   newMenuData.settings = settings;

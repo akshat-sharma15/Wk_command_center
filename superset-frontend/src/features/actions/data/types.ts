@@ -114,11 +114,6 @@ export interface AlertRuleRecord {
   updated_at: string;
 }
 
-export type NotificationPriority = 'Low' | 'Medium' | 'High';
-
-export interface NotificationRecord {
-  id: number;
-  name: string;
-  description: string;
-  priority: NotificationPriority;
-}
+// NotificationRecord now lives in data/notifications.ts (backed by the
+// real Notification API), replacing the earlier mock
+// name/description/priority shape defined here.

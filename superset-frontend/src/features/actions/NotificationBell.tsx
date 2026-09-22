@@ -16,17 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import { Badge, Popover } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
+import { addDangerToast } from 'src/components/MessageToasts/actions';
+import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import {
-  fetchNotificationCount,
   fetchNotifications,
+  fetchUnreadNotifications,
+  fetchSseTicket,
+  markNotificationRead,
+  notificationStreamUrl,
+  NotificationRecord,
 } from './data/notifications';
-import { NotificationRecord } from './data/types';
 
 const BellWrapper = styled.span`
   cursor: pointer;
@@ -53,11 +59,12 @@ const PanelBody = styled.div`
   overflow-y: auto;
 `;
 
-const NotificationItem = styled.div`
-  ${({ theme }) => `
+const NotificationItem = styled.div<{ read: boolean }>`
+  ${({ theme, read }) => `
     padding: ${theme.sizeUnit * 2}px ${theme.sizeUnit * 3}px;
     cursor: pointer;
     border-bottom: 1px solid ${theme.colorBorderSecondary};
+    font-weight: ${read ? theme.fontWeightNormal : theme.fontWeightStrong};
 
     &:hover {
       background-color: ${theme.colorBgTextHover};
@@ -79,24 +86,72 @@ const EmptyState = styled.div`
 
 export default function NotificationBell() {
   const history = useHistory();
+  const dispatch = useDispatch();
+  const danger = useCallback(
+    (message: string) => dispatch(addDangerToast(message)),
+    [dispatch],
+  );
+  const user = useSelector<any, UserWithPermissionsAndRoles>(
+    state => state.user,
+  );
+  const userId = user?.userId;
+
   const [visible, setVisible] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
-  const [count, setCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
+  // Initial unread notifications + count, and the realtime SSE connection.
+  // Missed-during-disconnect notifications are recovered simply by this
+  // unread fetch running again on remount/reconnect - the durable source
+  // of truth is always the backend, never anything buffered client-side
+  // only in this effect.
   useEffect(() => {
-    fetchNotificationCount().then(setCount);
-  }, []);
+    if (!userId) return undefined;
+
+    fetchUnreadNotifications(userId, danger).then(items => {
+      setNotifications(items);
+      setUnreadCount(items.length);
+    });
+
+    let cancelled = false;
+    fetchSseTicket(userId, danger).then(ticket => {
+      if (!ticket || cancelled) return;
+      const source = new EventSource(notificationStreamUrl(ticket));
+      eventSourceRef.current = source;
+      source.addEventListener('notification', (event: MessageEvent) => {
+        const notification = JSON.parse(event.data) as NotificationRecord;
+        setNotifications(prev => [ notification, ...prev ]);
+        setUnreadCount(prev => prev + 1);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+    };
+  }, [userId, danger]);
 
   const handleVisibleChange = (nextVisible: boolean) => {
     setVisible(nextVisible);
-    if (nextVisible) {
-      fetchNotifications().then(setNotifications);
+    if (nextVisible && userId) {
+      fetchNotifications(userId, danger).then(setNotifications);
     }
   };
 
-  const handleSelectNotification = (id: number) => {
+  const handleSelectNotification = (notification: NotificationRecord) => {
     setVisible(false);
-    history.push(`/notification/${id}`);
+    if (userId && !notification.read) {
+      markNotificationRead(userId, notification.id, danger);
+      setNotifications(prev =>
+        prev.map(item =>
+          item.id === notification.id ? { ...item, read: true } : item,
+        ),
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    history.push(`/notification/${notification.id}`);
   };
 
   const content = (
@@ -109,11 +164,12 @@ export default function NotificationBell() {
           notifications.map(notification => (
             <NotificationItem
               key={notification.id}
+              read={notification.read}
               role="button"
               tabIndex={0}
-              onClick={() => handleSelectNotification(notification.id)}
+              onClick={() => handleSelectNotification(notification)}
             >
-              {notification.name}
+              {notification.title}
             </NotificationItem>
           ))
         )}
@@ -130,7 +186,7 @@ export default function NotificationBell() {
       onVisibleChange={handleVisibleChange}
     >
       <BellWrapper data-test="notification-bell" title={t('Notifications')}>
-        <Badge count={count} size="small" offset={[-2, 2]}>
+        <Badge count={unreadCount} size="small" offset={[-2, 2]}>
           <Icons.BellOutlined />
         </Badge>
       </BellWrapper>

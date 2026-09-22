@@ -16,39 +16,149 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { NotificationRecord } from './types';
+import { t } from '@apache-superset/core/translation';
+import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
 
-const NOTIFICATIONS: NotificationRecord[] = [
-  {
-    id: 1,
-    name: 'Truck accident escalation triggered',
-    description:
-      'The "Truck accident escalation" alert fired for hub HUB-014 after a driver reported an accident. Fleet ops has been notified via Slack.',
-    priority: 'High',
-  },
-  {
-    id: 2,
-    name: 'Overdue payment alert triggered',
-    description:
-      'Invoice INV-2291 is 12 days overdue. The "Overdue payment alert" notified finance via the weekly digest channel.',
-    priority: 'Medium',
-  },
-  {
-    id: 3,
-    name: 'Hub capacity warning triggered',
-    description:
-      'Hub HUB-002 reached 95% parking capacity. The "Hub capacity warning" alert notified hub managers.',
-    priority: 'Low',
-  },
-];
+// See data/events.ts for why this is needed: the Command Center Rails API
+// is a separate backend/origin from Superset itself.
+const COMMAND_CENTER_API_HOST = 'localhost:3001';
+const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
-export const fetchNotifications = async (): Promise<NotificationRecord[]> =>
-  NOTIFICATIONS;
+export interface NotificationRecord {
+  id: number;
+  alert_id: number;
+  channel: 'in_app' | 'slack';
+  status: 'pending' | 'delivered' | 'failed';
+  title: string;
+  message: string;
+  metadata: Record<string, unknown> | null;
+  read: boolean;
+  read_at: string | null;
+  delivered_at: string | null;
+  created_at: string;
+}
+
+const describeError = (error: unknown): string =>
+  Array.isArray(error) ? error.join(', ') : String(error);
+
+async function reportError(
+  response: unknown,
+  addDangerToast: (message: string) => void,
+  fallback: string,
+) {
+  try {
+    const { error } = await getClientErrorObject(
+      response as Parameters<typeof getClientErrorObject>[0],
+    );
+    const detail = (error as { error?: unknown })?.error;
+    addDangerToast(detail ? describeError(detail) : fallback);
+  } catch {
+    addDangerToast(fallback);
+  }
+}
+
+// The backend identifies "the current user" via this header - see
+// SupersetUserIdentifiable on the Rails side for why (Superset's own
+// already-authenticated session, read here from Redux state hydrated from
+// Superset's bootstrap data - see NotificationBell.tsx).
+const identityHeaders = (userId: number) => ({ 'X-Superset-User-Id': String(userId) });
+
+export const fetchNotifications = async (
+  userId: number,
+  addDangerToast: (message: string) => void,
+): Promise<NotificationRecord[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/notifications',
+      headers: identityHeaders(userId),
+    });
+    return json as NotificationRecord[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching notifications'));
+    return [];
+  }
+};
+
+export const fetchUnreadNotifications = async (
+  userId: number,
+  addDangerToast: (message: string) => void,
+): Promise<NotificationRecord[]> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/notifications/unread',
+      headers: identityHeaders(userId),
+    });
+    return json as NotificationRecord[];
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching notifications'));
+    return [];
+  }
+};
 
 export const fetchNotificationById = async (
+  userId: number,
   id: number,
-): Promise<NotificationRecord | undefined> =>
-  NOTIFICATIONS.find(notification => notification.id === id);
+  addDangerToast: (message: string) => void,
+): Promise<NotificationRecord | null> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: `/api/v1/notifications/${id}`,
+      headers: identityHeaders(userId),
+    });
+    return json as NotificationRecord;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while fetching notification'));
+    return null;
+  }
+};
 
-export const fetchNotificationCount = async (): Promise<number> =>
-  NOTIFICATIONS.length;
+export const markNotificationRead = async (
+  userId: number,
+  id: number,
+  addDangerToast: (message: string) => void,
+): Promise<NotificationRecord | null> => {
+  try {
+    // No .patch() on SupersetClientInterface (only get/post/put/delete) -
+    // .request() with an explicit method is the documented way to issue
+    // any other verb.
+    const { json } = await SupersetClient.request({
+      ...CROSS_ORIGIN,
+      method: 'PATCH',
+      endpoint: `/api/v1/notifications/${id}/read`,
+      headers: identityHeaders(userId),
+    });
+    return json as NotificationRecord;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while marking notification read'));
+    return null;
+  }
+};
+
+/**
+ * A short-lived signed ticket for the SSE connection only - EventSource
+ * cannot send the X-Superset-User-Id header the other endpoints use, so
+ * this exchanges a normal (header-authenticated) request for an opaque,
+ * time-limited ticket instead of putting the raw user id in a URL.
+ */
+export const fetchSseTicket = async (
+  userId: number,
+  addDangerToast: (message: string) => void,
+): Promise<string | null> => {
+  try {
+    const { json } = await SupersetClient.get({
+      ...CROSS_ORIGIN,
+      endpoint: '/api/v1/notifications/sse-ticket',
+      headers: identityHeaders(userId),
+    });
+    return (json as { ticket: string }).ticket;
+  } catch (response) {
+    await reportError(response, addDangerToast, t('Error while connecting to notification stream'));
+    return null;
+  }
+};
+
+export const notificationStreamUrl = (ticket: string): string =>
+  `http://${COMMAND_CENTER_API_HOST}/api/v1/notifications/stream?ticket=${encodeURIComponent(ticket)}`;

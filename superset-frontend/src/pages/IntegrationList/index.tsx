@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
+import { css, styled } from '@apache-superset/core/theme';
 import { DeleteModal } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
@@ -32,6 +33,7 @@ import withToasts from 'src/components/MessageToasts/withToasts';
 import { actionMenuData } from 'src/features/home/actionMenuData';
 import { useMockListState } from 'src/features/actions/hooks/useMockListState';
 import StatusLabel from 'src/features/actions/components/StatusLabel';
+import SlackConnectionCard from 'src/features/actions/SlackConnectionCard';
 import {
   fetchIntegrations,
   createIntegration,
@@ -41,6 +43,12 @@ import { Integration } from 'src/features/actions/data/types';
 import IntegrationModal from 'src/features/actions/IntegrationModal';
 
 const PAGE_SIZE = 25;
+
+const SlackCardContainer = styled.div(
+  ({ theme }) => css`
+    margin: ${theme.sizeUnit * 4}px ${theme.sizeUnit * 4}px 0;
+  `,
+);
 
 interface IntegrationListProps {
   addDangerToast: (msg: string) => void;
@@ -192,6 +200,12 @@ function IntegrationList({
           },
         ]}
       />
+      <SlackCardContainer>
+        <SlackConnectionCard
+          addDangerToast={addDangerToast}
+          addSuccessToast={addSuccessToast}
+        />
+      </SlackCardContainer>
       <IntegrationModal
         key={modalInstanceKey}
         show={createModalOpen}

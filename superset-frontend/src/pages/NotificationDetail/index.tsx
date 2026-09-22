@@ -18,13 +18,18 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import { css, styled } from '@apache-superset/core/theme';
 import { EmptyState, Loading } from '@superset-ui/core/components';
 import SubMenu from 'src/features/home/SubMenu';
 import { Descriptions } from 'src/components/Descriptions';
-import { fetchNotificationById } from 'src/features/actions/data/notifications';
-import { NotificationRecord } from 'src/features/actions/data/types';
+import { addDangerToast } from 'src/components/MessageToasts/actions';
+import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
+import {
+  fetchNotificationById,
+  NotificationRecord,
+} from 'src/features/actions/data/notifications';
 
 const DescriptionsContainer = styled.div`
   ${({ theme }) => css`
@@ -35,6 +40,10 @@ const DescriptionsContainer = styled.div`
 `;
 
 export default function NotificationDetail() {
+  const dispatch = useDispatch();
+  const user = useSelector<any, UserWithPermissionsAndRoles>(
+    state => state.user,
+  );
   const { notificationId } = useParams<{ notificationId: string }>();
   const [notification, setNotification] = useState<NotificationRecord | null>(
     null,
@@ -42,12 +51,15 @@ export default function NotificationDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user?.userId) return;
     setLoading(true);
-    fetchNotificationById(Number(notificationId)).then(result => {
-      setNotification(result ?? null);
+    fetchNotificationById(user.userId, Number(notificationId), message =>
+      dispatch(addDangerToast(message)),
+    ).then(result => {
+      setNotification(result);
       setLoading(false);
     });
-  }, [notificationId]);
+  }, [notificationId, user?.userId, dispatch]);
 
   return (
     <>
@@ -64,14 +76,17 @@ export default function NotificationDetail() {
             column={1}
             labelStyle={{ width: '160px' }}
           >
-            <Descriptions.Item label={t('Name')}>
-              {notification.name}
+            <Descriptions.Item label={t('Title')}>
+              {notification.title}
             </Descriptions.Item>
-            <Descriptions.Item label={t('Description')}>
-              {notification.description}
+            <Descriptions.Item label={t('Message')}>
+              {notification.message}
             </Descriptions.Item>
-            <Descriptions.Item label={t('Priority')}>
-              {notification.priority}
+            <Descriptions.Item label={t('Channel')}>
+              {notification.channel}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('Status')}>
+              {notification.status}
             </Descriptions.Item>
           </Descriptions>
         </DescriptionsContainer>

@@ -99,6 +99,7 @@ import {
   MenuUnfoldOutlined,
   MinusCircleOutlined,
   MinusSquareOutlined,
+  MobileOutlined,
   MoonOutlined,
   LoadingOutlined,
   LoginOutlined,
@@ -162,6 +163,7 @@ import {
   CompressOutlined,
   HistoryOutlined,
   SlackOutlined,
+  WhatsAppOutlined,
   ApiOutlined,
 } from '@ant-design/icons';
 import { FC } from 'react';
@@ -257,6 +259,7 @@ const AntdIcons = {
   MenuUnfoldOutlined,
   MinusCircleOutlined,
   MinusSquareOutlined,
+  MobileOutlined,
   MonitorOutlined,
   MoonOutlined,
   MoreOutlined,
@@ -314,6 +317,7 @@ const AntdIcons = {
   CompressOutlined,
   HistoryOutlined,
   SlackOutlined,
+  WhatsAppOutlined,
   ApiOutlined,
 } as const;
 

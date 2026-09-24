@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { css, styled } from '@apache-superset/core/theme';
 import { Button, Card, Loading } from '@superset-ui/core/components';
+import { Icons } from '@superset-ui/core/components/Icons';
 import {
   fetchSlackStatus,
   startSlackConnect,
@@ -50,6 +51,14 @@ const CardBody = styled.div(
   `,
 );
 
+const CardTitle = styled.span(
+  ({ theme }) => css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${theme.sizeUnit * 2}px;
+  `,
+);
+
 // Reads the `?slack=success|error&reason=...` query params the OAuth
 // callback redirect leaves on the URL, surfaces a toast for them, then
 // strips them so a page refresh doesn't re-show the toast.
@@ -68,7 +77,10 @@ function useSlackOAuthRedirectResult(
       onSuccess();
     } else {
       addDangerToast(
-        t('Slack connection failed (%s)', params.get('reason') ?? t('unknown error')),
+        t(
+          'Slack connection failed (%s)',
+          params.get('reason') ?? t('unknown error'),
+        ),
       );
     }
 
@@ -122,7 +134,10 @@ export default function SlackConnectionCard({
   const handleDisconnect = async () => {
     if (!status.integration) return;
     setDisconnecting(true);
-    const success = await disconnectSlack(status.integration.id, addDangerToast);
+    const success = await disconnectSlack(
+      status.integration.id,
+      addDangerToast,
+    );
     setDisconnecting(false);
     if (success) {
       addSuccessToast(t('Slack disconnected'));
@@ -131,7 +146,14 @@ export default function SlackConnectionCard({
   };
 
   return (
-    <Card title={t('Slack')} data-test="slack-connection-card">
+    <Card
+      title={
+        <CardTitle>
+          <Icons.SlackOutlined /> {t('Slack')}
+        </CardTitle>
+      }
+      data-test="slack-connection-card"
+    >
       {loading ? (
         <Loading position="inline-centered" />
       ) : (

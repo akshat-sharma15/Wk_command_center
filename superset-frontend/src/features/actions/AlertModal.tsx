@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState, ChangeEvent } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { css, styled } from '@apache-superset/core/theme';
 import { Input, Modal, Select, Switch } from '@superset-ui/core/components';
+import { Radio, RadioChangeEvent } from '@superset-ui/core/components/Radio';
 import { ModalTitleWithIcon } from 'src/components/ModalTitleWithIcon';
 import Role from 'src/types/Role';
 import { fetchEvents } from './data/events';
@@ -36,6 +37,7 @@ import {
   AlertRuleFieldOption,
   AlertRuleGroupOption,
   AlertRuleRecord,
+  AlertRuleTriggerType,
   EventRecord,
 } from './data/types';
 
@@ -45,6 +47,11 @@ const SEVERITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'critical', label: t('Critical') },
 ];
 
+const TRIGGER_TYPE_OPTIONS: { value: AlertRuleTriggerType; label: string }[] = [
+  { value: 'event', label: t('Event') },
+  { value: 'condition', label: t('Data Condition') },
+];
+
 const RECIPIENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'role', label: t('Role') },
   { value: 'user', label: t('User') },
@@ -52,7 +59,6 @@ const RECIPIENT_TYPE_OPTIONS: { value: string; label: string }[] = [
 
 const CHANNEL_OPTIONS: { value: string; label: string }[] = [
   { value: 'in_app', label: t('In-App') },
-  { value: 'email', label: t('Email') },
   { value: 'slack', label: t('Slack') },
 ];
 
@@ -90,10 +96,17 @@ export default function AlertModal({
   const isEditMode = Boolean(alertRule);
 
   const [name, setName] = useState(alertRule?.name ?? '');
-  const [groupId, setGroupId] = useState<string | undefined>(alertRule?.group);
-  const [field, setField] = useState<string | undefined>(alertRule?.field);
+  const [triggerType, setTriggerType] = useState<AlertRuleTriggerType>(
+    alertRule?.trigger_type ?? 'condition',
+  );
+  const [groupId, setGroupId] = useState<string | undefined>(
+    alertRule?.group ?? undefined,
+  );
+  const [field, setField] = useState<string | undefined>(
+    alertRule?.field ?? undefined,
+  );
   const [operator, setOperator] = useState<string | undefined>(
-    alertRule?.operator,
+    alertRule?.operator ?? undefined,
   );
   const [value, setValue] = useState<string | number | boolean>(
     alertRule?.value ?? '',
@@ -182,6 +195,22 @@ export default function AlertModal({
     setName(event.target.value);
   };
 
+  const handleTriggerTypeChange = (event: RadioChangeEvent) => {
+    const nextTriggerType = event.target.value as AlertRuleTriggerType;
+    setTriggerType(nextTriggerType);
+    // The two modes are mutually exclusive on the backend - clear the
+    // other mode's fields so a stale value can't be submitted alongside
+    // the newly selected mode.
+    if (nextTriggerType === 'event') {
+      setGroupId(undefined);
+      setField(undefined);
+      setOperator(undefined);
+      setValue('');
+    } else {
+      setEventDefinitionId(undefined);
+    }
+  };
+
   const handleGroupChange = (nextGroupId: string) => {
     setGroupId(nextGroupId);
     // Reset the dependent Field/Operator/Value state whenever Group changes.
@@ -204,23 +233,32 @@ export default function AlertModal({
 
   const canSave =
     Boolean(name) &&
-    Boolean(groupId) &&
-    Boolean(field) &&
-    Boolean(operator) &&
-    value !== '' &&
     Boolean(severity) &&
+    (triggerType === 'event'
+      ? Boolean(eventDefinitionId)
+      : Boolean(groupId) &&
+        Boolean(field) &&
+        Boolean(operator) &&
+        value !== '') &&
     (!notify || (Boolean(recipientType) && Boolean(recipientId)));
 
   const handleSave = () => {
-    if (!groupId || !field || !operator || !severity) return;
+    if (!severity) return;
+    if (triggerType === 'event') {
+      if (!eventDefinitionId) return;
+    } else if (!groupId || !field || !operator) {
+      return;
+    }
     onSave({
       name,
-      group: groupId,
-      field,
-      operator,
-      value,
+      triggerType,
+      group: triggerType === 'condition' ? (groupId ?? null) : null,
+      field: triggerType === 'condition' ? (field ?? null) : null,
+      operator: triggerType === 'condition' ? (operator ?? null) : null,
+      value: triggerType === 'condition' ? value : null,
       severity,
-      eventDefinitionId: eventDefinitionId ?? null,
+      eventDefinitionId:
+        triggerType === 'event' ? (eventDefinitionId ?? null) : null,
       notify,
       recipientType: recipientType ?? null,
       recipientId: recipientId ?? null,
@@ -265,101 +303,120 @@ export default function AlertModal({
       </FieldContainer>
       <FieldContainer>
         <div className="control-label">
-          {t('Group')}
+          {t('Trigger Type')}
           <span className="required">*</span>
         </div>
-        <Select
-          ariaLabel={t('Group')}
-          loading={optionsLoading}
-          options={groupOptions.map(group => ({
-            label: group.label,
-            value: group.key,
-          }))}
-          value={groupId}
-          onChange={(v: string) => handleGroupChange(v)}
+        <Radio.GroupWrapper
+          options={TRIGGER_TYPE_OPTIONS}
+          value={triggerType}
+          onChange={handleTriggerTypeChange}
         />
       </FieldContainer>
-      <FieldContainer>
-        <div className="control-label">
-          {t('Field')}
-          <span className="required">*</span>
-        </div>
-        <Select
-          ariaLabel={t('Field')}
-          loading={fieldsLoading}
-          disabled={!groupId}
-          placeholder={groupId ? undefined : t('Select a Group first')}
-          options={fieldOptions.map(option => ({
-            label: option.label,
-            value: option.key,
-          }))}
-          value={field}
-          onChange={(v: string) => handleFieldChange(v)}
-        />
-      </FieldContainer>
-      <FieldContainer>
-        <div className="control-label">
-          {t('Operator')}
-          <span className="required">*</span>
-        </div>
-        <Select
-          ariaLabel={t('Operator')}
-          disabled={!field}
-          placeholder={field ? undefined : t('Select a Field first')}
-          options={operatorOptions.map(op => ({ label: op, value: op }))}
-          value={operator}
-          onChange={(v: string) => setOperator(v)}
-        />
-      </FieldContainer>
-      <FieldContainer>
-        <div className="control-label">
-          {t('Value')}
-          <span className="required">*</span>
-        </div>
-        {valueOptions ? (
+      {triggerType === 'event' ? (
+        <FieldContainer>
+          <div className="control-label">
+            {t('Event')}
+            <span className="required">*</span>
+          </div>
           <Select
-            ariaLabel={t('Value')}
-            disabled={!field}
-            options={valueOptions.map(option => ({
-              label: option,
-              value: option,
+            ariaLabel={t('Event')}
+            loading={optionsLoading}
+            options={eventOptions.map(event => ({
+              label: event.name,
+              value: event.id,
             }))}
-            value={typeof value === 'string' ? value || undefined : undefined}
-            onChange={(v: string) => setValue(v)}
+            value={eventDefinitionId}
+            onChange={(v: number | undefined) => setEventDefinitionId(v)}
           />
-        ) : (
-          <Input
-            name="value"
-            data-test="alert-value-input"
-            disabled={!field}
-            type={selectedFieldMeta?.type === 'number' ? 'number' : 'text'}
-            value={String(value)}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              const raw = event.target.value;
-              setValue(
-                selectedFieldMeta?.type === 'number' && raw !== ''
-                  ? Number(raw)
-                  : raw,
-              );
-            }}
-          />
-        )}
-      </FieldContainer>
-      <FieldContainer>
-        <div className="control-label">{t('Event')}</div>
-        <Select
-          ariaLabel={t('Event')}
-          loading={optionsLoading}
-          allowClear
-          placeholder={t('No event (field-only alert)')}
-          options={eventOptions.map(event => ({
-            label: event.name,
-            value: event.id,
-          }))}
-          value={eventDefinitionId}
-          onChange={(v: number | undefined) => setEventDefinitionId(v)}
-        />
-      </FieldContainer>
+        </FieldContainer>
+      ) : (
+        <>
+          <FieldContainer>
+            <div className="control-label">
+              {t('Group')}
+              <span className="required">*</span>
+            </div>
+            <Select
+              ariaLabel={t('Group')}
+              loading={optionsLoading}
+              options={groupOptions.map(group => ({
+                label: group.label,
+                value: group.key,
+              }))}
+              value={groupId}
+              onChange={(v: string) => handleGroupChange(v)}
+            />
+          </FieldContainer>
+          <FieldContainer>
+            <div className="control-label">
+              {t('Field')}
+              <span className="required">*</span>
+            </div>
+            <Select
+              ariaLabel={t('Field')}
+              loading={fieldsLoading}
+              disabled={!groupId}
+              placeholder={groupId ? undefined : t('Select a Group first')}
+              options={fieldOptions.map(option => ({
+                label: option.label,
+                value: option.key,
+              }))}
+              value={field}
+              onChange={(v: string) => handleFieldChange(v)}
+            />
+          </FieldContainer>
+          <FieldContainer>
+            <div className="control-label">
+              {t('Operator')}
+              <span className="required">*</span>
+            </div>
+            <Select
+              ariaLabel={t('Operator')}
+              disabled={!field}
+              placeholder={field ? undefined : t('Select a Field first')}
+              options={operatorOptions.map(op => ({ label: op, value: op }))}
+              value={operator}
+              onChange={(v: string) => setOperator(v)}
+            />
+          </FieldContainer>
+          <FieldContainer>
+            <div className="control-label">
+              {t('Value')}
+              <span className="required">*</span>
+            </div>
+            {valueOptions ? (
+              <Select
+                ariaLabel={t('Value')}
+                disabled={!field}
+                options={valueOptions.map(option => ({
+                  label: option,
+                  value: option,
+                }))}
+                value={
+                  typeof value === 'string' ? value || undefined : undefined
+                }
+                onChange={(v: string) => setValue(v)}
+              />
+            ) : (
+              <Input
+                name="value"
+                data-test="alert-value-input"
+                disabled={!field}
+                type={selectedFieldMeta?.type === 'number' ? 'number' : 'text'}
+                value={String(value)}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  const raw = event.target.value;
+                  setValue(
+                    selectedFieldMeta?.type === 'number' && raw !== ''
+                      ? Number(raw)
+                      : raw,
+                  );
+                }}
+              />
+            )}
+          </FieldContainer>
+        </>
+      )}
       <FieldContainer>
         <div className="control-label">
           {t('Severity')}

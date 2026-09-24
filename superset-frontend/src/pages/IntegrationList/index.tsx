@@ -16,37 +16,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { css, styled } from '@apache-superset/core/theme';
-import { DeleteModal } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
-import {
-  ListView,
-  ListViewActionsBar,
-  ListViewFilterOperator as FilterOperator,
-  type ListViewActionProps,
-  type ListViewFilters,
-} from 'src/components';
 import withToasts from 'src/components/MessageToasts/withToasts';
 import { actionMenuData } from 'src/features/home/actionMenuData';
-import { useMockListState } from 'src/features/actions/hooks/useMockListState';
-import StatusLabel from 'src/features/actions/components/StatusLabel';
 import SlackConnectionCard from 'src/features/actions/SlackConnectionCard';
-import {
-  fetchIntegrations,
-  createIntegration,
-  deleteIntegration,
-} from 'src/features/actions/data/integrations';
-import { Integration } from 'src/features/actions/data/types';
-import IntegrationModal from 'src/features/actions/IntegrationModal';
+import DisabledIntegrationCard from 'src/features/actions/DisabledIntegrationCard';
 
-const PAGE_SIZE = 25;
+// --- Imports used only by the static integration list / Create Integration
+// flow below, which is temporarily hidden (see the commented-out block at
+// the bottom of this component). Kept here, still commented, so restoring
+// that flow later is a matter of uncommenting rather than re-deriving it.
+// import { useCallback, useEffect, useMemo, useState } from 'react';
+// import { DeleteModal } from '@superset-ui/core/components';
+// import {
+//   ListView,
+//   ListViewActionsBar,
+//   ListViewFilterOperator as FilterOperator,
+//   type ListViewActionProps,
+//   type ListViewFilters,
+// } from 'src/components';
+// import { useMockListState } from 'src/features/actions/hooks/useMockListState';
+// import StatusLabel from 'src/features/actions/components/StatusLabel';
+// import {
+//   fetchIntegrations,
+//   createIntegration,
+//   deleteIntegration,
+// } from 'src/features/actions/data/integrations';
+// import { Integration } from 'src/features/actions/data/types';
+// import IntegrationModal from 'src/features/actions/IntegrationModal';
 
-const SlackCardContainer = styled.div(
+// const PAGE_SIZE = 25;
+
+const CardsGrid = styled.div(
   ({ theme }) => css`
+    display: flex;
+    flex-direction: column;
+    gap: ${theme.sizeUnit * 4}px;
     margin: ${theme.sizeUnit * 4}px ${theme.sizeUnit * 4}px 0;
+
+    > * {
+      width: 100%;
+    }
   `,
 );
 
@@ -59,128 +72,129 @@ function IntegrationList({
   addDangerToast,
   addSuccessToast,
 }: IntegrationListProps) {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const refreshData = useCallback(() => {
-    setLoading(true);
-    fetchIntegrations().then(items => {
-      setIntegrations(items);
-      setLoading(false);
-    });
-  }, []);
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
-  const { rows, count, fetchData } =
-    useMockListState<Integration>(integrations);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [modalInstanceKey, setModalInstanceKey] = useState(0);
-  const [integrationCurrentlyDeleting, setIntegrationCurrentlyDeleting] =
-    useState<Integration | null>(null);
-
-  const handleCreate = useCallback(
-    (input: { name: string; type: string; description: string }) => {
-      createIntegration(input).then(() => {
-        setCreateModalOpen(false);
-        refreshData();
-        addSuccessToast(t('Integration created'));
-      });
-    },
-    [refreshData, addSuccessToast],
-  );
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!integrationCurrentlyDeleting) return;
-    deleteIntegration(integrationCurrentlyDeleting.id).then(() => {
-      addSuccessToast(t('Deleted: %s', integrationCurrentlyDeleting.name));
-      setIntegrationCurrentlyDeleting(null);
-      refreshData();
-    });
-  }, [integrationCurrentlyDeleting, refreshData, addSuccessToast]);
-
-  const columns = useMemo(
-    () => [
-      { accessor: 'name', Header: t('Name'), id: 'name', size: 'xl' },
-      {
-        accessor: 'type',
-        Header: t('Integration type'),
-        id: 'type',
-        size: 'lg',
-      },
-      {
-        Cell: ({ row: { original } }: { row: { original: Integration } }) => (
-          <StatusLabel status={original.status} />
-        ),
-        accessor: 'status',
-        Header: t('Status'),
-        id: 'status',
-        size: 'sm',
-      },
-      {
-        accessor: 'description',
-        Header: t('Description'),
-        id: 'description',
-        disableSortBy: true,
-        size: 'xxl',
-      },
-      {
-        accessor: 'changed_by_name',
-        Header: t('Modified by'),
-        id: 'changed_by_name',
-        size: 'lg',
-      },
-      {
-        accessor: 'changed_on_delta_humanized',
-        Header: t('Last modified'),
-        id: 'changed_on_delta_humanized',
-        size: 'lg',
-      },
-      {
-        Cell: ({ row: { original } }: { row: { original: Integration } }) => {
-          const actions: ListViewActionProps[] = [
-            {
-              label: 'delete-action',
-              tooltip: t('Delete integration'),
-              placement: 'bottom',
-              icon: 'DeleteOutlined',
-              onClick: () => setIntegrationCurrentlyDeleting(original),
-            },
-          ];
-          return <ListViewActionsBar actions={actions} />;
-        },
-        Header: t('Actions'),
-        id: 'actions',
-        disableSortBy: true,
-        size: 'xl',
-      },
-    ],
-    [],
-  );
-
-  const filters: ListViewFilters = useMemo(
-    () => [
-      {
-        Header: t('Name'),
-        key: 'search',
-        id: 'name',
-        input: 'search',
-        operator: FilterOperator.Contains,
-      },
-      {
-        Header: t('Status'),
-        key: 'status',
-        id: 'status',
-        input: 'select',
-        operator: FilterOperator.Equals,
-        unfilteredLabel: t('All'),
-        selects: (['Active', 'Inactive', 'Draft'] as const).map(status => ({
-          label: status,
-          value: status,
-        })),
-      },
-    ],
-    [],
-  );
+  // --- Static integration list / Create Integration state (hidden for now)
+  // const [integrations, setIntegrations] = useState<Integration[]>([]);
+  // const [loading, setLoading] = useState(true);
+  // const refreshData = useCallback(() => {
+  //   setLoading(true);
+  //   fetchIntegrations().then(items => {
+  //     setIntegrations(items);
+  //     setLoading(false);
+  //   });
+  // }, []);
+  // useEffect(() => {
+  //   refreshData();
+  // }, [refreshData]);
+  // const { rows, count, fetchData } =
+  //   useMockListState<Integration>(integrations);
+  // const [createModalOpen, setCreateModalOpen] = useState(false);
+  // const [modalInstanceKey, setModalInstanceKey] = useState(0);
+  // const [integrationCurrentlyDeleting, setIntegrationCurrentlyDeleting] =
+  //   useState<Integration | null>(null);
+  //
+  // const handleCreate = useCallback(
+  //   (input: { name: string; type: string; description: string }) => {
+  //     createIntegration(input).then(() => {
+  //       setCreateModalOpen(false);
+  //       refreshData();
+  //       addSuccessToast(t('Integration created'));
+  //     });
+  //   },
+  //   [refreshData, addSuccessToast],
+  // );
+  //
+  // const handleDeleteConfirm = useCallback(() => {
+  //   if (!integrationCurrentlyDeleting) return;
+  //   deleteIntegration(integrationCurrentlyDeleting.id).then(() => {
+  //     addSuccessToast(t('Deleted: %s', integrationCurrentlyDeleting.name));
+  //     setIntegrationCurrentlyDeleting(null);
+  //     refreshData();
+  //   });
+  // }, [integrationCurrentlyDeleting, refreshData, addSuccessToast]);
+  //
+  // const columns = useMemo(
+  //   () => [
+  //     { accessor: 'name', Header: t('Name'), id: 'name', size: 'xl' },
+  //     {
+  //       accessor: 'type',
+  //       Header: t('Integration type'),
+  //       id: 'type',
+  //       size: 'lg',
+  //     },
+  //     {
+  //       Cell: ({ row: { original } }: { row: { original: Integration } }) => (
+  //         <StatusLabel status={original.status} />
+  //       ),
+  //       accessor: 'status',
+  //       Header: t('Status'),
+  //       id: 'status',
+  //       size: 'sm',
+  //     },
+  //     {
+  //       accessor: 'description',
+  //       Header: t('Description'),
+  //       id: 'description',
+  //       disableSortBy: true,
+  //       size: 'xxl',
+  //     },
+  //     {
+  //       accessor: 'changed_by_name',
+  //       Header: t('Modified by'),
+  //       id: 'changed_by_name',
+  //       size: 'lg',
+  //     },
+  //     {
+  //       accessor: 'changed_on_delta_humanized',
+  //       Header: t('Last modified'),
+  //       id: 'changed_on_delta_humanized',
+  //       size: 'lg',
+  //     },
+  //     {
+  //       Cell: ({ row: { original } }: { row: { original: Integration } }) => {
+  //         const actions: ListViewActionProps[] = [
+  //           {
+  //             label: 'delete-action',
+  //             tooltip: t('Delete integration'),
+  //             placement: 'bottom',
+  //             icon: 'DeleteOutlined',
+  //             onClick: () => setIntegrationCurrentlyDeleting(original),
+  //           },
+  //         ];
+  //         return <ListViewActionsBar actions={actions} />;
+  //       },
+  //       Header: t('Actions'),
+  //       id: 'actions',
+  //       disableSortBy: true,
+  //       size: 'xl',
+  //     },
+  //   ],
+  //   [],
+  // );
+  //
+  // const filters: ListViewFilters = useMemo(
+  //   () => [
+  //     {
+  //       Header: t('Name'),
+  //       key: 'search',
+  //       id: 'name',
+  //       input: 'search',
+  //       operator: FilterOperator.Contains,
+  //     },
+  //     {
+  //       Header: t('Status'),
+  //       key: 'status',
+  //       id: 'status',
+  //       input: 'select',
+  //       operator: FilterOperator.Equals,
+  //       unfilteredLabel: t('All'),
+  //       selects: (['Active', 'Inactive', 'Draft'] as const).map(status => ({
+  //         label: status,
+  //         value: status,
+  //       })),
+  //     },
+  //   ],
+  //   [],
+  // );
 
   return (
     <>
@@ -188,24 +202,42 @@ function IntegrationList({
         name={t('Integrations')}
         activeChild="Integration"
         tabs={actionMenuData.tabs}
-        buttons={[
-          {
-            icon: <Icons.PlusOutlined iconSize="m" />,
-            name: t('Integration'),
-            onClick: () => {
-              setModalInstanceKey(key => key + 1);
-              setCreateModalOpen(true);
-            },
-            buttonStyle: 'primary',
-          },
-        ]}
+        // "Create Integration" is hidden for now - integrations are
+        // connected via the cards below instead. Re-add this `buttons`
+        // array to restore the modal-based creation flow.
+        // buttons={[
+        //   {
+        //     icon: <Icons.PlusOutlined iconSize="m" />,
+        //     name: t('Integration'),
+        //     onClick: () => {
+        //       setModalInstanceKey(key => key + 1);
+        //       setCreateModalOpen(true);
+        //     },
+        //     buttonStyle: 'primary',
+        //   },
+        // ]}
       />
-      <SlackCardContainer>
+      <CardsGrid>
         <SlackConnectionCard
           addDangerToast={addDangerToast}
           addSuccessToast={addSuccessToast}
         />
-      </SlackCardContainer>
+        <DisabledIntegrationCard
+          name={t('SMS')}
+          icon={<Icons.MobileOutlined />}
+        />
+        <DisabledIntegrationCard
+          name={t('Email')}
+          icon={<Icons.MailOutlined />}
+        />
+        <DisabledIntegrationCard
+          name={t('WhatsApp')}
+          icon={<Icons.WhatsAppOutlined />}
+        />
+      </CardsGrid>
+      {/* --- Static integration list / Create Integration flow (hidden for
+        now; the mock data layer in data/integrations.ts is untouched so
+        this can come back once these integrations are API-backed). ---
       <IntegrationModal
         key={modalInstanceKey}
         show={createModalOpen}
@@ -236,6 +268,7 @@ function IntegrationList({
         addSuccessToast={addSuccessToast}
         refreshData={refreshData}
       />
+      --- end hidden block --- */}
     </>
   );
 }

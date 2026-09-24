@@ -22,6 +22,7 @@ import {
   AlertRuleRecord,
   AlertRuleGroupOption,
   AlertRuleFieldOption,
+  AlertRuleTriggerType,
 } from './types';
 
 // See data/events.ts for why this is needed: the Command Center Rails API
@@ -67,10 +68,11 @@ export const fetchAlertRules = async (
 
 export interface AlertRuleInput {
   name: string;
-  group: string;
-  field: string;
-  operator: string;
-  value: string | number | boolean;
+  triggerType: AlertRuleTriggerType;
+  group: string | null;
+  field: string | null;
+  operator: string | null;
+  value: string | number | boolean | null;
   severity: string;
   eventDefinitionId: number | null;
   notify: boolean;
@@ -80,15 +82,22 @@ export interface AlertRuleInput {
   enabled: boolean;
 }
 
+// The two trigger modes are mutually exclusive on the backend (see
+// AlertRule#event_trigger?/#condition_trigger?) - null out whichever
+// mode's fields don't apply rather than relying on the caller to have
+// done so, so a stray leftover value can never flip a request from one
+// mode to a rejected mixed one.
 const toAlertRulePayload = (input: AlertRuleInput) => ({
   alert_rule: {
     name: input.name,
-    group: input.group,
-    field: input.field,
-    operator: input.operator,
-    value: input.value,
+    trigger_type: input.triggerType,
+    group: input.triggerType === 'condition' ? input.group : null,
+    field: input.triggerType === 'condition' ? input.field : null,
+    operator: input.triggerType === 'condition' ? input.operator : null,
+    value: input.triggerType === 'condition' ? input.value : null,
     severity: input.severity,
-    event_definition_id: input.eventDefinitionId,
+    event_definition_id:
+      input.triggerType === 'event' ? input.eventDefinitionId : null,
     notify: input.notify,
     recipient_type: input.notify ? input.recipientType : null,
     recipient_id: input.notify ? input.recipientId : null,

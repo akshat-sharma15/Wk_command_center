@@ -123,7 +123,10 @@ function ActionAlertList({
           row: { original },
         }: {
           row: { original: AlertRuleRecord };
-        }) => `${original.operator} ${original.value}`,
+        }) =>
+          original.trigger_type === 'condition'
+            ? `${original.operator} ${original.value}`
+            : '',
         Header: t('Condition'),
         id: 'condition',
         disableSortBy: true,

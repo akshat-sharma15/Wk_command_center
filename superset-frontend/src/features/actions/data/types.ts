@@ -70,7 +70,11 @@ export type AlertRuleSeverity = 'info' | 'warning' | 'critical';
 
 export type AlertRuleRecipientType = 'role' | 'user';
 
-export type AlertRuleNotificationChannel = 'in_app' | 'email' | 'slack';
+/** No 'email' - the backend's AlertRule::NOTIFICATION_CHANNELS is in_app/slack only. */
+export type AlertRuleNotificationChannel = 'in_app' | 'slack';
+
+/** An AlertRule triggers on exactly one of these, mutually exclusive. */
+export type AlertRuleTriggerType = 'event' | 'condition';
 
 /** One entry from GET /api/v1/alert-resources - a supported AlertRule group. */
 export interface AlertRuleGroupOption {
@@ -95,11 +99,12 @@ export interface AlertRuleFieldOption {
 export interface AlertRuleRecord {
   id: number;
   name: string;
-  group: string;
-  group_label: string;
-  field: string;
-  field_label: string;
-  operator: AlertRuleOperator;
+  trigger_type: AlertRuleTriggerType;
+  group: string | null;
+  group_label: string | null;
+  field: string | null;
+  field_label: string | null;
+  operator: AlertRuleOperator | null;
   value: string | number | boolean | null;
   severity: AlertRuleSeverity;
   notify: boolean;

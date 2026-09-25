@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useState, useEffect } from 'react';
+import { t } from '@apache-superset/core/translation';
 import { styled, css, useTheme } from '@apache-superset/core/theme';
 import { ensureStaticPrefix } from 'src/utils/assetUrl';
 import { ensureAppRoot } from 'src/utils/pathUtils';
@@ -36,6 +37,11 @@ import {
 } from 'src/types/bootstrapTypes';
 import RightMenu from './RightMenu';
 import { NAVBAR_MENU_POPUP_OFFSET } from './commonMenuData';
+import {
+  ACTION_ALERT_PATH,
+  ACTION_EVENT_PATH,
+  ACTION_INTEGRATION_PATH,
+} from './actionMenuData';
 
 interface MenuProps {
   data: MenuData;
@@ -207,6 +213,9 @@ export function Menu({
     Datasets = '/tablemodelview',
     SqlLab = '/sqllab',
     SavedQueries = '/savedqueryview',
+    Integration = '/integration',
+    Event = '/event',
+    Alert = '/action-alert',
   }
 
   const defaultTabSelection: string[] = [];
@@ -226,6 +235,11 @@ export function Menu({
         break;
       case path.startsWith(Paths.SqlLab) || path.startsWith(Paths.SavedQueries):
         setActiveTabs(['SQL']);
+        break;
+      case path.startsWith(Paths.Integration) ||
+        path.startsWith(Paths.Event) ||
+        path.startsWith(Paths.Alert):
+        setActiveTabs(['Action']);
         break;
       default:
         setActiveTabs(defaultTabSelection);
@@ -434,6 +448,31 @@ export default function MenuWrapper({ data, ...rest }: MenuProps) {
       settings.push(newItem);
     }
   });
+
+  // Insert the "Action" tab (Integration/Event/Alert) beside the SQL tab.
+  // This is added client-side, rather than via the backend menu config,
+  // so it stays isolated from the existing SQL/Dataset menu wiring. Like
+  // every other tab, it must only show once the user is logged in -
+  // gate it the same way RightMenu.tsx gates its own items.
+  if (!newMenuData.navbar_right.user_is_anonymous) {
+    const actionMenuItem: MenuObjectProps = {
+      name: 'Action',
+      label: t('Action'),
+      childs: [
+        {
+          name: 'Integration',
+          label: t('Integration'),
+          url: ACTION_INTEGRATION_PATH,
+        },
+        { name: 'Event', label: t('Incident'), url: ACTION_EVENT_PATH },
+        { name: 'Alert', label: t('Alert'), url: ACTION_ALERT_PATH },
+      ],
+    };
+    const sqlMenuIndex = cleanedMenu.findIndex(item => item.label === 'SQL');
+    const insertAt =
+      sqlMenuIndex === -1 ? cleanedMenu.length : sqlMenuIndex + 1;
+    cleanedMenu.splice(insertAt, 0, actionMenuItem);
+  }
 
   newMenuData.menu = cleanedMenu;
   newMenuData.settings = settings;

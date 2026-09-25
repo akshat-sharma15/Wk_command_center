@@ -66,6 +66,7 @@ import {
   RightMenuProps,
 } from './types';
 import { NAVBAR_MENU_POPUP_OFFSET } from './commonMenuData';
+import NotificationBell from 'src/features/actions/NotificationBell';
 
 const extensionsRegistry = getExtensionsRegistry();
 
@@ -723,6 +724,12 @@ const RightMenu = ({
         disabledOverflow
         items={menuItems}
       />
+      {!navbarRight.user_is_anonymous && (
+        <>
+          <NotificationBell />
+          <span>&nbsp;</span>
+        </>
+      )}
       {navbarRight.documentation_url && (
         <>
           <StyledAnchor

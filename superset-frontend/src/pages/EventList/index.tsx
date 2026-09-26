@@ -18,14 +18,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import { DeleteModal } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
 import {
   ListView,
-  ListViewActionsBar,
   ListViewFilterOperator as FilterOperator,
-  type ListViewActionProps,
   type ListViewFilters,
 } from 'src/components';
 import withToasts from 'src/components/MessageToasts/withToasts';
@@ -35,7 +32,6 @@ import {
   fetchEvents,
   createEvent,
   updateEvent,
-  deleteEvent,
 } from 'src/features/actions/data/events';
 import {
   EVENT_GROUP_OPTIONS,
@@ -44,6 +40,17 @@ import {
 } from 'src/features/actions/data/eventGroups';
 import { EventRecord } from 'src/features/actions/data/types';
 import EventModal from 'src/features/actions/EventModal';
+import KpiStrip, {
+  KpiStripItem,
+} from 'src/features/actions/components/KpiStrip';
+
+const GROUP_ICONS: Record<string, JSX.Element> = {
+  Hubs: <Icons.ShopOutlined />,
+  'Fleet / Transport': <Icons.CarOutlined />,
+  Workforce: <Icons.TeamOutlined />,
+  Sales: <Icons.LineChartOutlined />,
+  Finance: <Icons.DollarOutlined />,
+};
 
 const PAGE_SIZE = 25;
 
@@ -67,12 +74,9 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
   }, [refreshData]);
   const { rows, count, fetchData } = useMockListState<EventRecord>(events);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalInstanceKey, setModalInstanceKey] = useState(0);
   const [eventBeingEdited, setEventBeingEdited] = useState<EventRecord | null>(
     null,
   );
-  const [eventCurrentlyDeleting, setEventCurrentlyDeleting] =
-    useState<EventRecord | null>(null);
 
   const handleSave = useCallback(
     (input: { name: string; groupId: string; eventTypeId: string }) => {
@@ -92,15 +96,26 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
     [eventBeingEdited, refreshData, addSuccessToast, addDangerToast],
   );
 
-  const handleDeleteConfirm = useCallback(() => {
-    if (!eventCurrentlyDeleting) return;
-    deleteEvent(eventCurrentlyDeleting.id, addDangerToast).then(success => {
-      if (!success) return;
-      addSuccessToast(t('Deleted: %s', eventCurrentlyDeleting.name));
-      setEventCurrentlyDeleting(null);
-      refreshData();
+  const kpiItems: KpiStripItem[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    events.forEach(event => {
+      counts.set(event.groupId, (counts.get(event.groupId) ?? 0) + 1);
     });
-  }, [eventCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
+    return [
+      {
+        key: 'total',
+        icon: <Icons.WarningOutlined />,
+        label: t('Total Incidents'),
+        value: events.length,
+      },
+      ...EVENT_GROUP_OPTIONS.map(group => ({
+        key: group.id,
+        icon: GROUP_ICONS[group.id] ?? <Icons.WarningOutlined />,
+        label: group.label,
+        value: counts.get(group.id) ?? 0,
+      })),
+    ];
+  }, [events]);
 
   const columns = useMemo(
     () => [
@@ -127,35 +142,6 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         Header: t('Last modified'),
         id: 'changed_on_delta_humanized',
         size: 'lg',
-      },
-      {
-        Cell: ({ row: { original } }: { row: { original: EventRecord } }) => {
-          const actions: ListViewActionProps[] = [
-            {
-              label: 'edit-action',
-              tooltip: t('Edit incident'),
-              placement: 'bottom',
-              icon: 'EditOutlined',
-              onClick: () => {
-                setEventBeingEdited(original);
-                setModalInstanceKey(key => key + 1);
-                setModalOpen(true);
-              },
-            },
-            {
-              label: 'delete-action',
-              tooltip: t('Delete incident'),
-              placement: 'bottom',
-              icon: 'DeleteOutlined',
-              onClick: () => setEventCurrentlyDeleting(original),
-            },
-          ];
-          return <ListViewActionsBar actions={actions} />;
-        },
-        Header: t('Actions'),
-        id: 'actions',
-        disableSortBy: true,
-        size: 'xl',
       },
     ],
     [],
@@ -192,21 +178,21 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         name={t('Incidents')}
         activeChild="Event"
         tabs={actionMenuData.tabs}
-        buttons={[
-          {
-            icon: <Icons.PlusOutlined iconSize="m" />,
-            name: t('Incident'),
-            onClick: () => {
-              setEventBeingEdited(null);
-              setModalInstanceKey(key => key + 1);
-              setModalOpen(true);
-            },
-            buttonStyle: 'primary',
-          },
-        ]}
+        // Incident creation is temporarily disabled - keep the button
+        // definition here, commented out, so it can be re-enabled later.
+        // buttons={[
+        //   {
+        //     icon: <Icons.PlusOutlined iconSize="m" />,
+        //     name: t('Incident'),
+        //     onClick: () => {
+        //       setEventBeingEdited(null);
+        //       setModalOpen(true);
+        //     },
+        //     buttonStyle: 'primary',
+        //   },
+        // ]}
       />
       <EventModal
-        key={modalInstanceKey}
         show={modalOpen}
         event={eventBeingEdited}
         onHide={() => {
@@ -215,17 +201,7 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         }}
         onSave={handleSave}
       />
-      {eventCurrentlyDeleting && (
-        <DeleteModal
-          description={t(
-            'This will permanently remove this incident. This action cannot be undone.',
-          )}
-          onConfirm={handleDeleteConfirm}
-          onHide={() => setEventCurrentlyDeleting(null)}
-          open
-          title={t('Delete %s?', eventCurrentlyDeleting.name)}
-        />
-      )}
+      <KpiStrip items={kpiItems} />
       <ListView<EventRecord>
         className="event-list-view"
         columns={columns}

@@ -36,6 +36,7 @@ import {
   useTheme,
 } from '@apache-superset/core/theme';
 import {
+  Button,
   Tag,
   Tooltip,
   Menu,
@@ -66,7 +67,7 @@ import {
   RightMenuProps,
 } from './types';
 import { NAVBAR_MENU_POPUP_OFFSET } from './commonMenuData';
-import NotificationBell from 'src/features/actions/NotificationBell';
+import { VIEW_MAP_URL } from 'src/features/actions/data/config';
 
 const extensionsRegistry = getExtensionsRegistry();
 
@@ -726,7 +727,17 @@ const RightMenu = ({
       />
       {!navbarRight.user_is_anonymous && (
         <>
-          <NotificationBell />
+          <Button
+            buttonStyle="primary"
+            buttonSize="small"
+            icon={<Icons.EnvironmentOutlined iconSize="m" />}
+            aria-label={t('View Map')}
+            onClick={() => {
+              window.open(VIEW_MAP_URL, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            {t('View Map')}
+          </Button>
           <span>&nbsp;</span>
         </>
       )}

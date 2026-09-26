@@ -123,6 +123,9 @@ from superset.config import THEME_DARK as _DEFAULT_THEME_DARK  # noqa: E402
 from superset.config import THEME_DEFAULT as _DEFAULT_THEME_DEFAULT  # noqa: E402
 
 
+_BRAND_PRIMARY_COLOR = "#27AE60"
+
+
 def _rebrand_theme(theme: dict | None) -> dict | None:
     if theme is None:
         return None
@@ -130,6 +133,12 @@ def _rebrand_theme(theme: dict | None) -> dict | None:
     branded["token"]["brandAppName"] = _BRAND_NAME
     branded["token"]["brandLogoAlt"] = _BRAND_NAME
     branded["token"]["brandLogoUrl"] = _BRAND_LOGO_PATH
+    # Brand/action color. Semantic status tokens (colorError/colorWarning/
+    # colorSuccess/colorInfo) are deliberately left untouched so the brand
+    # color stays distinct from status colors - the AntD theme algorithm
+    # derives every hover/active/border/bg shade of this from the one value.
+    branded["token"]["colorPrimary"] = _BRAND_PRIMARY_COLOR
+    branded["token"]["colorLink"] = _BRAND_PRIMARY_COLOR
     return branded
 
 

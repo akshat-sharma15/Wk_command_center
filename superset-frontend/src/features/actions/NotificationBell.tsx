@@ -34,10 +34,44 @@ import {
   NotificationRecord,
 } from './data/notifications';
 
-const BellWrapper = styled.span`
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
+const FloatingWrapper = styled.div`
+  ${({ theme }) => `
+    position: fixed;
+    right: ${theme.sizeUnit * 6}px;
+    /* Stacked above AiChatWidget's 56px floating button. */
+    bottom: calc(${theme.sizeUnit * 6}px + 56px + ${theme.sizeUnit * 3}px);
+    z-index: ${theme.zIndexPopupBase};
+  `}
+`;
+
+const BellButton = styled.button`
+  ${({ theme }) => `
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: ${theme.colorPrimary};
+    box-shadow: ${theme.boxShadowSecondary};
+    transition: transform 0.15s ease;
+
+    &:hover {
+      transform: scale(1.06);
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colorPrimaryBorderHover};
+      outline-offset: 2px;
+    }
+
+    .anticon {
+      color: ${theme.colorWhite};
+      font-size: 24px;
+    }
+  `}
 `;
 
 const PanelContainer = styled.div`
@@ -121,7 +155,7 @@ export default function NotificationBell() {
       eventSourceRef.current = source;
       source.addEventListener('notification', (event: MessageEvent) => {
         const notification = JSON.parse(event.data) as NotificationRecord;
-        setNotifications(prev => [ notification, ...prev ]);
+        setNotifications(prev => [notification, ...prev]);
         setUnreadCount(prev => prev + 1);
       });
     });
@@ -177,19 +211,35 @@ export default function NotificationBell() {
     </PanelContainer>
   );
 
+  // Signed-in users only - this mirrors the `!navbarRight.user_is_anonymous`
+  // gate this component used to be rendered behind in RightMenu.tsx before
+  // it became a global, App-root-mounted floating widget.
+  if (!userId) return null;
+
   return (
-    <Popover
-      content={content}
-      trigger="click"
-      placement="bottomRight"
-      visible={visible}
-      onVisibleChange={handleVisibleChange}
-    >
-      <BellWrapper data-test="notification-bell" title={t('Notifications')}>
-        <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-          <Icons.BellOutlined />
-        </Badge>
-      </BellWrapper>
-    </Popover>
+    <FloatingWrapper>
+      <Popover
+        content={content}
+        trigger="click"
+        placement="topRight"
+        visible={visible}
+        onVisibleChange={handleVisibleChange}
+      >
+        <BellButton
+          type="button"
+          data-test="notification-bell"
+          aria-label={t('Notifications, %s unread', unreadCount)}
+        >
+          <Badge
+            count={unreadCount}
+            size="small"
+            offset={[-2, 2]}
+            overflowCount={99}
+          >
+            <Icons.BellOutlined />
+          </Badge>
+        </BellButton>
+      </Popover>
+    </FloatingWrapper>
   );
 }

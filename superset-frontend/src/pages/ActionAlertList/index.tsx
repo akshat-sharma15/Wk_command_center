@@ -39,6 +39,9 @@ import {
 } from 'src/features/actions/data/alerts';
 import { AlertRuleRecord } from 'src/features/actions/data/types';
 import AlertModal from 'src/features/actions/AlertModal';
+import KpiStrip, {
+  KpiStripItem,
+} from 'src/features/actions/components/KpiStrip';
 
 const PAGE_SIZE = 25;
 
@@ -46,6 +49,12 @@ const SEVERITY_LABEL_TYPE: Record<string, 'default' | 'warning' | 'error'> = {
   info: 'default',
   warning: 'warning',
   critical: 'error',
+};
+
+const SEVERITY_ICONS: Record<string, JSX.Element> = {
+  info: <Icons.InfoCircleOutlined />,
+  warning: <Icons.WarningOutlined />,
+  critical: <Icons.ExclamationCircleOutlined />,
 };
 
 interface ActionAlertListProps {
@@ -104,6 +113,27 @@ function ActionAlertList({
       refreshData();
     });
   }, [alertCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
+
+  const kpiItems: KpiStripItem[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    alerts.forEach(alert => {
+      counts.set(alert.severity, (counts.get(alert.severity) ?? 0) + 1);
+    });
+    return [
+      {
+        key: 'total',
+        icon: <Icons.BellOutlined />,
+        label: t('Total Alerts'),
+        value: alerts.length,
+      },
+      ...['info', 'warning', 'critical'].map(severity => ({
+        key: severity,
+        icon: SEVERITY_ICONS[severity],
+        label: severity.charAt(0).toUpperCase() + severity.slice(1),
+        value: counts.get(severity) ?? 0,
+      })),
+    ];
+  }, [alerts]);
 
   const columns = useMemo(
     () => [
@@ -277,6 +307,7 @@ function ActionAlertList({
           title={t('Delete %s?', alertCurrentlyDeleting.name)}
         />
       )}
+      <KpiStrip items={kpiItems} />
       <ListView<AlertRuleRecord>
         className="alert-list-view"
         columns={columns}

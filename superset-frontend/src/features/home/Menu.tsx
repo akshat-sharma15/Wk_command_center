@@ -67,13 +67,12 @@ const StyledHeader = styled.header`
 
 const StyledBrandText = styled.div`
   ${({ theme }) => css`
-    border-left: 1px solid ${theme.colorBorderSecondary};
-    border-right: 1px solid ${theme.colorBorderSecondary};
     height: 100%;
     color: ${theme.colorText};
     padding-left: ${theme.sizeUnit * 4}px;
     padding-right: ${theme.sizeUnit * 4}px;
     font-size: ${theme.fontSizeLG}px;
+    font-weight: ${theme.fontWeightStrong};
     float: left;
     display: flex;
     flex-direction: column;
@@ -94,6 +93,12 @@ const StyledBrandText = styled.div`
 
 const StyledMainNav = styled(MainNav)`
   ${({ theme }) => css`
+    /* Allow the nav to actually shrink within its flex row instead of
+       forcing siblings (brand text, right-side controls) to overlap or
+       wrap - flex items default to a content-based min-width otherwise. */
+    flex: 1 1 auto;
+    min-width: 0;
+
     .ant-menu-item .ant-menu-item-icon + span,
     .ant-menu-submenu-title .ant-menu-item-icon + span,
     .ant-menu-item .anticon + span,
@@ -369,7 +374,6 @@ export function Menu({
             data-test="navbar-top"
             className="main-nav"
             selectedKeys={activeTabs}
-            disabledOverflow
             items={menu.map(item => {
               const props = {
                 ...item,
@@ -465,7 +469,7 @@ export default function MenuWrapper({ data, ...rest }: MenuProps) {
           url: ACTION_INTEGRATION_PATH,
         },
         { name: 'Event', label: t('Incident'), url: ACTION_EVENT_PATH },
-        { name: 'Alert', label: t('Alert'), url: ACTION_ALERT_PATH },
+        { name: 'Alert', label: t('Alert Rule'), url: ACTION_ALERT_PATH },
       ],
     };
     const sqlMenuIndex = cleanedMenu.findIndex(item => item.label === 'SQL');

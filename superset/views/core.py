@@ -926,7 +926,18 @@ class Superset(BaseSupersetView):
             .filter_by(user_id=get_user_id())
             .scalar()
         ):
-            return self.dashboard(dashboard_id_or_slug=str(welcome_dashboard_id))
+            # An actual HTTP redirect, not an in-place render: the frontend
+            # is a React-Router SPA, so once its JS loads it matches routes
+            # by URL alone. Rendering the dashboard's bootstrap payload here
+            # while staying on /superset/welcome/ would just have the SPA
+            # router immediately re-render the generic Home page for that
+            # URL, discarding this response's payload.
+            return redirect(
+                url_for(
+                    "Superset.dashboard",
+                    dashboard_id_or_slug=str(welcome_dashboard_id),
+                )
+            )
 
         payload = {
             "user": bootstrap_user_data(g.user, include_perms=True),

@@ -93,17 +93,35 @@ const StyledHeader = styled.div<{ backgroundColor?: string }>`
     padding-left: ${({ theme }) => theme.sizeUnit * 5}px;
     line-height: ${({ theme }) => theme.sizeUnit * 5}px;
 
+    /* Matches the main top nav's active-tab convention (colored text, no
+       pill background) instead of a separate style, so sub-tabs (Action,
+       SQL, ...) read as the same navigation system as the primary nav. */
     .ant-menu-item {
-      border-radius: ${({ theme }) => theme.borderRadius}px;
+      border-radius: 0;
       font-size: ${({ theme }) => theme.fontSizeSM}px;
       padding: ${({ theme }) => theme.sizeUnit}px
         ${({ theme }) => theme.sizeUnit * 4}px;
-      margin-right: ${({ theme }) => theme.sizeUnit}px;
+      margin-right: 0;
+      position: relative;
+
+      &:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        width: 1px;
+        height: ${({ theme }) => theme.sizeUnit * 4}px;
+        background: ${({ theme }) => theme.colorSplit};
+      }
     }
     .ant-menu-item:hover,
     .ant-menu-item:has(> span > .active) {
-      background-color: ${({ theme }) => theme.colorPrimaryBgHover};
-      color: ${({ theme }) => theme.colorText};
+      background-color: transparent;
+      color: ${({ theme }) => theme.colorPrimary};
+    }
+    .ant-menu-item:has(> span > .active) {
+      font-weight: ${({ theme }) => theme.fontWeightStrong};
     }
   }
 

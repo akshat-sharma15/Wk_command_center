@@ -16,32 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { t } from '@apache-superset/core/translation';
 
-export const ACTION_INTEGRATION_PATH = '/integration/list/';
-export const ACTION_EVENT_PATH = '/event/list/';
-export const ACTION_ALERT_PATH = '/action-alert/list/';
+/**
+ * Lets any page ask the one globally-mounted AiChatWidget (see views/App.tsx)
+ * to open scoped to a chart, instead of each page rendering a chat panel of
+ * its own. The widget lives outside the router, so a listing page can't reach
+ * it by props or context - but it also shouldn't have to, since there is only
+ * ever one chat surface.
+ */
+export interface ChartChatTarget {
+  chartId: number;
+  chartName: string;
+}
 
-export const actionMenuData = {
-  name: t('Action'),
-  tabs: [
-    {
-      name: 'Integration',
-      label: t('Integration'),
-      url: ACTION_INTEGRATION_PATH,
-      usesRouter: true,
-    },
-    {
-      name: 'Event',
-      label: t('Incident'),
-      url: ACTION_EVENT_PATH,
-      usesRouter: true,
-    },
-    {
-      name: 'Alert',
-      label: t('Alert Rule'),
-      url: ACTION_ALERT_PATH,
-      usesRouter: true,
-    },
-  ],
+type Listener = (target: ChartChatTarget) => void;
+
+const listeners = new Set<Listener>();
+
+export const openChartChat = (target: ChartChatTarget): void => {
+  listeners.forEach(listener => listener(target));
+};
+
+export const subscribeToChartChat = (listener: Listener): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 };

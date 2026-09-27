@@ -20,14 +20,11 @@ import { t } from '@apache-superset/core/translation';
 import { Alert } from '@apache-superset/core/components';
 import { styled } from '@apache-superset/core/theme';
 import { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
-import cx from 'classnames';
 import TableCollection from '@superset-ui/core/components/TableCollection';
 import BulkTagModal from 'src/features/tags/BulkTagModal';
 import {
   Button,
-  Tooltip,
   Checkbox,
-  Icons,
   EmptyState,
   Loading,
   Pagination,
@@ -54,17 +51,64 @@ const ListViewStyles = styled.div`
     .superset-list-view {
       text-align: left;
       border-radius: 4px 0;
-      margin: 0 ${theme.sizeUnit * 4}px;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0 ${theme.sizeUnit * 20}px;
 
       .header {
         display: flex;
         padding-bottom: ${theme.sizeUnit * 4}px;
 
+        /* No horizontal padding or border box here: the filter row and the
+           table below are siblings sharing this container's gutter, so any
+           inset of its own would offset the filter fields from the table's
+           leftmost column. Filter inputs carry their own borders instead. */
         & .controls {
           display: flex;
           flex-wrap: wrap;
+          align-items: flex-end;
           column-gap: ${theme.sizeUnit * 7}px;
           row-gap: ${theme.sizeUnit * 4}px;
+          padding: ${theme.sizeUnit * 2}px 0;
+
+          .ant-select-selector,
+          .ant-input,
+          .ant-picker {
+            background: ${theme.colorBgContainer};
+            border-color: ${theme.colorBorder};
+          }
+
+          .ant-select-selection-placeholder,
+          input::placeholder {
+            color: ${theme.colorTextSecondary};
+          }
+
+          .ant-select:hover .ant-select-selector,
+          .ant-input:hover,
+          .ant-picker:hover {
+            border-color: ${theme.colorPrimary};
+          }
+
+          .ant-select-focused .ant-select-selector,
+          .ant-input:focus,
+          .ant-input-focused,
+          .ant-picker-focused {
+            border-color: ${theme.colorPrimary};
+          }
+        }
+      }
+
+      /* Resource name links (Dashboard/Chart/Dataset/etc.) render as plain
+         anchors, which otherwise inherit AntD's global colorLink styling -
+         the same brand green used for actions/active-states. Names are
+         identity text, not actions, so they stay dark by default and only
+         pick up the brand color on hover/focus, same as a conventional link. */
+      a {
+        color: ${theme.colorText};
+
+        &:hover,
+        &:focus {
+          color: ${theme.colorPrimary};
         }
       }
 
@@ -157,34 +201,6 @@ const bulkSelectColumnConfig = {
   size: 'sm',
 };
 
-const ViewModeContainer = styled.div`
-  ${({ theme }) => `
-    padding-right: ${theme.sizeUnit * 4}px;
-    margin-top: ${theme.sizeUnit * 5 + 1}px;
-    white-space: nowrap;
-    display: inline-block;
-
-    .toggle-button {
-      display: inline-block;
-      border-radius: ${theme.borderRadius}px;
-      padding: ${theme.sizeUnit}px;
-      padding-bottom: ${theme.sizeUnit * 0.5}px;
-
-      &:first-of-type {
-        margin-right: ${theme.sizeUnit * 2}px;
-      }
-    }
-
-    .active {
-      background-color: ${theme.colorText};
-
-      svg {
-        color: ${theme.colorBgLayout};
-      }
-    }
-  `}
-`;
-
 const EmptyWrapper = styled.div`
   ${({ theme }) => `
     padding: ${theme.sizeUnit * 40}px 0;
@@ -196,44 +212,13 @@ const EmptyWrapper = styled.div`
   `}
 `;
 
-const ViewModeToggle = ({
-  mode,
-  setMode,
-}: {
-  mode: 'table' | 'card';
-  setMode: (mode: 'table' | 'card') => void;
-}) => (
-  <ViewModeContainer>
-    <Tooltip title={t('Grid view')}>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-pressed={mode === 'card'}
-        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-          e.currentTarget.blur();
-          setMode('card');
-        }}
-        className={cx('toggle-button', { active: mode === 'card' })}
-      >
-        <Icons.AppstoreOutlined iconSize="xl" />
-      </div>
-    </Tooltip>
-    <Tooltip title={t('List view')}>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-pressed={mode === 'table'}
-        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-          e.currentTarget.blur();
-          setMode('table');
-        }}
-        className={cx('toggle-button', { active: mode === 'table' })}
-      >
-        <Icons.UnorderedListOutlined iconSize="xl" />
-      </div>
-    </Tooltip>
-  </ViewModeContainer>
-);
+// The card/table view switcher has been removed - table is the only
+// supported view now. Explicitly typed as `boolean` (not narrowed to the
+// `false` literal) so the still-present, restorable card-view JSX below
+// keeps its normal type narrowing on optional props like
+// `cardSortSelectOptions` instead of being type-checked as unreachable.
+const CARD_VIEW_ENABLED: boolean = false;
+
 export interface ListViewProps<T extends object = any> {
   columns: any[];
   data: T[];
@@ -306,8 +291,7 @@ export function ListView<T extends object = any>({
     setSortBy,
     selectedFlatRows,
     toggleAllRowsSelected,
-    setViewMode,
-    state: { pageIndex, pageSize, internalFilters, sortBy, viewMode },
+    state: { pageIndex, pageSize, internalFilters, sortBy },
     query,
   } = useListViewState({
     bulkSelectColumnConfig,
@@ -320,7 +304,10 @@ export function ListView<T extends object = any>({
     initialSort,
     initialFilters: filters,
     renderCard: Boolean(renderCard),
-    defaultViewMode,
+    // The card/table view switcher has been removed - table is the only
+    // supported view now. `defaultViewMode` stays in the prop type for API
+    // compatibility with existing callers, but is intentionally ignored here.
+    defaultViewMode: 'table',
   });
   const allowBulkTagActions = bulkTagResourceName && enableBulkTag;
   const filterable = Boolean(filters.length);
@@ -346,7 +333,6 @@ export function ListView<T extends object = any>({
     }
   }, [query.filters]);
 
-  const cardViewEnabled = Boolean(renderCard);
   const [showBulkTagModal, setShowBulkTagModal] = useState<boolean>(false);
 
   useEffect(() => {
@@ -375,9 +361,6 @@ export function ListView<T extends object = any>({
       )}
       <div data-test={className} className={`superset-list-view ${className} `}>
         <div className="header">
-          {cardViewEnabled && (
-            <ViewModeToggle mode={viewMode} setMode={setViewMode} />
-          )}
           <div className="controls" data-test="filters-select">
             {filterable && (
               <FilterControls
@@ -387,7 +370,7 @@ export function ListView<T extends object = any>({
                 updateFilterValue={applyFilterValue}
               />
             )}
-            {viewMode === 'card' && cardSortSelectOptions && (
+            {CARD_VIEW_ENABLED && cardSortSelectOptions && (
               <CardSortSelect
                 initialSort={sortBy}
                 onChange={(value: SortColumn[]) => setSortBy(value)}
@@ -455,7 +438,11 @@ export function ListView<T extends object = any>({
               }
             />
           )}
-          {viewMode === 'card' && (
+          {/* Card view is permanently disabled (see CARD_VIEW_ENABLED above)
+              - a stray `?viewMode=card` left over from before the switcher
+              was removed must not be able to resurrect it. Left in place,
+              rather than deleted, so it can be restored later. */}
+          {CARD_VIEW_ENABLED && (
             <>
               <CardCollection
                 bulkSelectEnabled={bulkSelectEnabled}
@@ -490,46 +477,44 @@ export function ListView<T extends object = any>({
               )}
             </>
           )}
-          {viewMode === 'table' && (
-            <>
-              {loading && rows.length === 0 ? (
-                <FullPageLoadingWrapper>
-                  <Loading />
-                </FullPageLoadingWrapper>
-              ) : (
-                <TableCollection
-                  getTableProps={getTableProps}
-                  getTableBodyProps={getTableBodyProps}
-                  prepareRow={prepareRow}
-                  headerGroups={headerGroups}
-                  setSortBy={setSortBy}
-                  rows={rows}
-                  columns={columns}
-                  loading={loading && rows.length > 0}
-                  highlightRowId={highlightRowId}
-                  columnsForWrapText={columnsForWrapText}
-                  bulkSelectEnabled={bulkSelectEnabled}
-                  selectedFlatRows={selectedFlatRows}
-                  toggleRowSelected={(rowId, value) => {
-                    const row = rows.find((r: any) => r.id === rowId);
-                    if (row) {
-                      prepareRow(row);
-                      (row as any).toggleRowSelected(value);
-                    }
-                  }}
-                  toggleAllRowsSelected={toggleAllRowsSelected}
-                  pageIndex={pageIndex}
-                  pageSize={pageSize}
-                  totalCount={count}
-                  onPageChange={newPageIndex => {
-                    gotoPage(newPageIndex);
-                  }}
-                />
-              )}
-            </>
-          )}
+          <>
+            {loading && rows.length === 0 ? (
+              <FullPageLoadingWrapper>
+                <Loading />
+              </FullPageLoadingWrapper>
+            ) : (
+              <TableCollection
+                getTableProps={getTableProps}
+                getTableBodyProps={getTableBodyProps}
+                prepareRow={prepareRow}
+                headerGroups={headerGroups}
+                setSortBy={setSortBy}
+                rows={rows}
+                columns={columns}
+                loading={loading && rows.length > 0}
+                highlightRowId={highlightRowId}
+                columnsForWrapText={columnsForWrapText}
+                bulkSelectEnabled={bulkSelectEnabled}
+                selectedFlatRows={selectedFlatRows}
+                toggleRowSelected={(rowId, value) => {
+                  const row = rows.find((r: any) => r.id === rowId);
+                  if (row) {
+                    prepareRow(row);
+                    (row as any).toggleRowSelected(value);
+                  }
+                }}
+                toggleAllRowsSelected={toggleAllRowsSelected}
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                totalCount={count}
+                onPageChange={newPageIndex => {
+                  gotoPage(newPageIndex);
+                }}
+              />
+            )}
+          </>
           {!loading && rows.length === 0 && (
-            <EmptyWrapper className={viewMode} data-test="empty-state">
+            <EmptyWrapper className="table" data-test="empty-state">
               {query.filters ? (
                 <EmptyState
                   title={t('No results match your filter criteria')}

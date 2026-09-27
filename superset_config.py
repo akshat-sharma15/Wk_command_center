@@ -170,3 +170,14 @@ def _allow_command_center_origin(talisman_config: dict) -> dict:
 
 TALISMAN_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_CONFIG)
 TALISMAN_DEV_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_DEV_CONFIG)
+
+# --- Chart-scoped AI chat (superset/chart_chat) ---
+# Unlike the Action tab's direct browser->Rails calls above, chart chat is
+# proxied through Superset so the chart's dataset is resolved and access-checked
+# here before any context reaches the AI service. This URL is therefore used
+# server-side, not by the browser.
+COMMAND_CENTER_API_URL = _COMMAND_CENTER_API_ORIGIN
+# Shared secret proving a chart-chat request came from Superset post-auth.
+# Set COMMAND_CENTER_SERVICE_TOKEN in the environment on both sides; never
+# commit a value here.
+COMMAND_CENTER_SERVICE_TOKEN = os.environ.get("COMMAND_CENTER_SERVICE_TOKEN")

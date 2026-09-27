@@ -97,7 +97,7 @@ function ActionAlertList({
         setAlertBeingEdited(null);
         refreshData();
         addSuccessToast(
-          alertBeingEdited ? t('Alert updated') : t('Alert created'),
+          alertBeingEdited ? t('Alert Rule updated') : t('Alert Rule created'),
         );
       });
     },
@@ -123,7 +123,7 @@ function ActionAlertList({
       {
         key: 'total',
         icon: <Icons.BellOutlined />,
-        label: t('Total Alerts'),
+        label: t('Total Alert Rules'),
         value: alerts.length,
       },
       ...['info', 'warning', 'critical'].map(severity => ({
@@ -213,7 +213,7 @@ function ActionAlertList({
           const actions: ListViewActionProps[] = [
             {
               label: 'edit-action',
-              tooltip: t('Edit alert'),
+              tooltip: t('Edit alert rule'),
               placement: 'bottom',
               icon: 'EditOutlined',
               onClick: () => {
@@ -224,7 +224,7 @@ function ActionAlertList({
             },
             {
               label: 'delete-action',
-              tooltip: t('Delete alert'),
+              tooltip: t('Delete alert rule'),
               placement: 'bottom',
               icon: 'DeleteOutlined',
               onClick: () => setAlertCurrentlyDeleting(original),
@@ -269,13 +269,13 @@ function ActionAlertList({
   return (
     <>
       <SubMenu
-        name={t('Alerts')}
+        name={t('Alert Rules')}
         activeChild="Alert"
         tabs={actionMenuData.tabs}
         buttons={[
           {
             icon: <Icons.PlusOutlined iconSize="m" />,
-            name: t('Alert'),
+            name: t('Alert Rule'),
             onClick: () => {
               setAlertBeingEdited(null);
               setModalInstanceKey(key => key + 1);
@@ -299,7 +299,7 @@ function ActionAlertList({
       {alertCurrentlyDeleting && (
         <DeleteModal
           description={t(
-            'This will permanently remove this alert. This action cannot be undone.',
+            'This will permanently remove this alert rule. This action cannot be undone.',
           )}
           onConfirm={handleDeleteConfirm}
           onHide={() => setAlertCurrentlyDeleting(null)}

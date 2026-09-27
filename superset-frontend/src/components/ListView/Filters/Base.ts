@@ -30,7 +30,8 @@ export const FilterContainer = styled(Flex)<FilterContainerProps>`
     label {
       display: block;
       font-size: ${theme.fontSizeSM}px;
-      color: ${theme.colorTextLabel};
+      font-weight: ${theme.fontWeightStrong};
+      color: ${theme.colorText};
       margin-bottom: ${theme.sizeUnit}px;
     }
     .anticon-info-circle {

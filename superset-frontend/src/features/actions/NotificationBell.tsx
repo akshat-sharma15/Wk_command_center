@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
-import { styled } from '@apache-superset/core/theme';
+import { styled, useTheme } from '@apache-superset/core/theme';
 import { Badge, Popover } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { addDangerToast } from 'src/components/MessageToasts/actions';
@@ -119,6 +119,7 @@ const EmptyState = styled.div`
 `;
 
 export default function NotificationBell() {
+  const theme = useTheme();
   const history = useHistory();
   const dispatch = useDispatch();
   const danger = useCallback(
@@ -235,6 +236,7 @@ export default function NotificationBell() {
             size="small"
             offset={[-2, 2]}
             overflowCount={99}
+            color={theme.colorError}
           >
             <Icons.BellOutlined />
           </Badge>

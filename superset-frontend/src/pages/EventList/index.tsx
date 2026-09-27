@@ -74,6 +74,7 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
   }, [refreshData]);
   const { rows, count, fetchData } = useMockListState<EventRecord>(events);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalInstanceKey, setModalInstanceKey] = useState(0);
   const [eventBeingEdited, setEventBeingEdited] = useState<EventRecord | null>(
     null,
   );
@@ -178,21 +179,21 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         name={t('Incidents')}
         activeChild="Event"
         tabs={actionMenuData.tabs}
-        // Incident creation is temporarily disabled - keep the button
-        // definition here, commented out, so it can be re-enabled later.
-        // buttons={[
-        //   {
-        //     icon: <Icons.PlusOutlined iconSize="m" />,
-        //     name: t('Incident'),
-        //     onClick: () => {
-        //       setEventBeingEdited(null);
-        //       setModalOpen(true);
-        //     },
-        //     buttonStyle: 'primary',
-        //   },
-        // ]}
+        buttons={[
+          {
+            icon: <Icons.PlusOutlined iconSize="m" />,
+            name: t('Incident'),
+            onClick: () => {
+              setEventBeingEdited(null);
+              setModalInstanceKey(key => key + 1);
+              setModalOpen(true);
+            },
+            buttonStyle: 'primary',
+          },
+        ]}
       />
       <EventModal
+        key={modalInstanceKey}
         show={modalOpen}
         event={eventBeingEdited}
         onHide={() => {

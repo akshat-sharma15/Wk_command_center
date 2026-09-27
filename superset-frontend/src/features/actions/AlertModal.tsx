@@ -283,7 +283,7 @@ export default function AlertModal({
       title={
         <ModalTitleWithIcon
           isEditMode={isEditMode}
-          title={isEditMode ? t('Edit Alert') : t('Create Alert')}
+          title={isEditMode ? t('Edit Alert Rule') : t('Create Alert Rule')}
           data-test="alert-modal-title"
         />
       }

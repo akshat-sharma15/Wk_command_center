@@ -78,6 +78,7 @@ import { nativeFilterGate } from 'src/dashboard/components/nativeFilters/utils';
 import { TagTypeEnum } from 'src/components/Tag/TagType';
 import { loadTags } from 'src/components/Tag/utils';
 import ChartCard from 'src/features/charts/ChartCard';
+import { openChartChat } from 'src/features/actions/chartChatBus';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { findPermission } from 'src/utils/findPermission';
 import { QueryObjectColumns } from 'src/views/CRUD/types';
@@ -508,12 +509,33 @@ function ChartList(props: ChartListProps) {
             );
           const openEditModal = () => openChartEditModal(original);
           const handleExport = () => handleBulkChartExport([original]);
-          if (!canEdit && !canDelete && !canExport) {
-            return null;
-          }
+          const askAiAboutChart = () =>
+            openChartChat({
+              chartId: original.id,
+              chartName: original.slice_name,
+            });
 
           return (
             <StyledActions className="actions">
+              {/* Available for every chart regardless of edit/export/delete
+                  permissions - access to the chart and its dataset is checked
+                  server-side (see superset/chart_chat/api.py). */}
+              <Tooltip
+                id="ai-chat-action-tooltip"
+                title={t('Ask AI')}
+                placement="bottom"
+              >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="action-button"
+                  aria-label={t('Ask AI')}
+                  onClick={askAiAboutChart}
+                  data-test="chart-ai-chat-action"
+                >
+                  <Icons.CommentOutlined iconSize="l" />
+                </span>
+              </Tooltip>
               {canEdit && (
                 <Tooltip
                   id="edit-action-tooltip"
@@ -582,7 +604,8 @@ function ChartList(props: ChartListProps) {
         id: 'actions',
         size: 'lg',
         disableSortBy: true,
-        hidden: !canEdit && !canDelete,
+        // Always shown: the AI chat action above is available to any user who
+        // can read the chart, even without edit/delete rights.
       },
       {
         accessor: QueryObjectColumns.ChangedBy,

@@ -73,9 +73,17 @@ const ListViewStyles = styled.div`
 
           .ant-select-selector,
           .ant-input,
+          .ant-input-affix-wrapper,
           .ant-picker {
             background: ${theme.colorBgContainer};
-            border-color: ${theme.colorBorder};
+            border-color: ${theme.colorTextTertiary};
+          }
+
+          /* The search input's own border lives on its affix wrapper, not
+             the inner <input> (which is borderless in that layout) - avoid
+             a double border by leaving the inner input's border alone. */
+          .ant-input-affix-wrapper .ant-input {
+            border-color: transparent;
           }
 
           .ant-select-selection-placeholder,
@@ -85,6 +93,7 @@ const ListViewStyles = styled.div`
 
           .ant-select:hover .ant-select-selector,
           .ant-input:hover,
+          .ant-input-affix-wrapper:hover,
           .ant-picker:hover {
             border-color: ${theme.colorPrimary};
           }
@@ -92,6 +101,7 @@ const ListViewStyles = styled.div`
           .ant-select-focused .ant-select-selector,
           .ant-input:focus,
           .ant-input-focused,
+          .ant-input-affix-wrapper-focused,
           .ant-picker-focused {
             border-color: ${theme.colorPrimary};
           }
@@ -480,7 +490,7 @@ export function ListView<T extends object = any>({
           <>
             {loading && rows.length === 0 ? (
               <FullPageLoadingWrapper>
-                <Loading />
+                <Loading position="inline-centered" />
               </FullPageLoadingWrapper>
             ) : (
               <TableCollection

@@ -19,9 +19,11 @@
 import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
 
-// See data/events.ts for why this is needed: the Command Center Rails API
-// is a separate backend/origin from Superset itself.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
+// See data/events.ts for why this is needed and where the host comes from:
+// the Command Center Rails API is a separate backend/origin from Superset
+// itself.
+const COMMAND_CENTER_API_HOST =
+  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
 const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
 export interface SlackWorkspace {
@@ -101,9 +103,14 @@ export const disconnectSlack = async (
   addDangerToast: (message: string) => void,
 ): Promise<boolean> => {
   try {
+    // parseMethod: 'raw' - a successful disconnect returns 204 No Content,
+    // and the default 'json' parse method calls response.json() on that
+    // empty body regardless of status, throwing a SyntaxError that would
+    // otherwise be caught below and misreported as a failed disconnect.
     await SupersetClient.delete({
       ...CROSS_ORIGIN,
       endpoint: `/api/v1/integrations/slack/${id}`,
+      parseMethod: 'raw',
     });
     return true;
   } catch (response) {

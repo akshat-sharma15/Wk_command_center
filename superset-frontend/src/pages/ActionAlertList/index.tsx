@@ -18,7 +18,10 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import { DeleteModal, Label } from '@superset-ui/core/components';
+// DeleteModal is unused while delete is disabled below - restore this
+// import when that entry point comes back.
+// import { DeleteModal } from '@superset-ui/core/components';
+import { Label } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
 import {
@@ -35,7 +38,8 @@ import {
   fetchAlertRules,
   createAlertRule,
   updateAlertRule,
-  deleteAlertRule,
+  // deleteAlertRule is unused while delete is disabled below.
+  // deleteAlertRule,
 } from 'src/features/actions/data/alerts';
 import { AlertRuleRecord } from 'src/features/actions/data/types';
 import AlertModal from 'src/features/actions/AlertModal';
@@ -83,8 +87,10 @@ function ActionAlertList({
   const [modalInstanceKey, setModalInstanceKey] = useState(0);
   const [alertBeingEdited, setAlertBeingEdited] =
     useState<AlertRuleRecord | null>(null);
-  const [alertCurrentlyDeleting, setAlertCurrentlyDeleting] =
-    useState<AlertRuleRecord | null>(null);
+  // Delete is disabled for now (see the actions column and the commented-out
+  // DeleteModal below) - restore this state alongside those.
+  // const [alertCurrentlyDeleting, setAlertCurrentlyDeleting] =
+  //   useState<AlertRuleRecord | null>(null);
 
   const handleSave = useCallback(
     (input: Parameters<typeof createAlertRule>[0]) => {
@@ -104,15 +110,15 @@ function ActionAlertList({
     [alertBeingEdited, refreshData, addSuccessToast, addDangerToast],
   );
 
-  const handleDeleteConfirm = useCallback(() => {
-    if (!alertCurrentlyDeleting) return;
-    deleteAlertRule(alertCurrentlyDeleting.id, addDangerToast).then(success => {
-      if (!success) return;
-      addSuccessToast(t('Deleted: %s', alertCurrentlyDeleting.name));
-      setAlertCurrentlyDeleting(null);
-      refreshData();
-    });
-  }, [alertCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
+  // const handleDeleteConfirm = useCallback(() => {
+  //   if (!alertCurrentlyDeleting) return;
+  //   deleteAlertRule(alertCurrentlyDeleting.id, addDangerToast).then(success => {
+  //     if (!success) return;
+  //     addSuccessToast(t('Deleted: %s', alertCurrentlyDeleting.name));
+  //     setAlertCurrentlyDeleting(null);
+  //     refreshData();
+  //   });
+  // }, [alertCurrentlyDeleting, refreshData, addSuccessToast, addDangerToast]);
 
   const kpiItems: KpiStripItem[] = useMemo(() => {
     const counts = new Map<string, number>();
@@ -222,13 +228,15 @@ function ActionAlertList({
                 setModalOpen(true);
               },
             },
-            {
-              label: 'delete-action',
-              tooltip: t('Delete alert rule'),
-              placement: 'bottom',
-              icon: 'DeleteOutlined',
-              onClick: () => setAlertCurrentlyDeleting(original),
-            },
+            // Delete is disabled for now - restore alongside the
+            // commented-out state/handler/modal above and below.
+            // {
+            //   label: 'delete-action',
+            //   tooltip: t('Delete alert rule'),
+            //   placement: 'bottom',
+            //   icon: 'DeleteOutlined',
+            //   onClick: () => setAlertCurrentlyDeleting(original),
+            // },
           ];
           return <ListViewActionsBar actions={actions} />;
         },
@@ -296,7 +304,7 @@ function ActionAlertList({
         }}
         onSave={handleSave}
       />
-      {alertCurrentlyDeleting && (
+      {/* {alertCurrentlyDeleting && (
         <DeleteModal
           description={t(
             'This will permanently remove this alert rule. This action cannot be undone.',
@@ -306,7 +314,7 @@ function ActionAlertList({
           open
           title={t('Delete %s?', alertCurrentlyDeleting.name)}
         />
-      )}
+      )} */}
       <KpiStrip items={kpiItems} />
       <ListView<AlertRuleRecord>
         className="alert-list-view"

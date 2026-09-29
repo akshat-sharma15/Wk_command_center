@@ -31,8 +31,12 @@ const Strip = styled.div(
   ({ theme }) => css`
     display: flex;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
     gap: ${theme.sizeUnit * 4}px;
-    margin: 0 ${theme.sizeUnit * 4}px ${theme.sizeUnit * 4}px;
+    max-width: 1600px;
+    margin: 0 auto ${theme.sizeUnit * 4}px;
+    padding: 0 ${theme.sizeUnit * 20}px;
 
     > div {
       flex: 1 1 180px;

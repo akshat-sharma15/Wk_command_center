@@ -52,10 +52,13 @@ const IconBadge = styled.span(
 const StatText = styled.div(
   ({ theme }) => css`
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: ${theme.sizeUnit * 2}px;
     min-width: 0;
 
     span:first-of-type {
+      flex: 0 0 auto;
       font-size: ${theme.fontSizeXL}px;
       font-weight: ${theme.fontWeightBold};
       color: ${theme.colorText};
@@ -63,6 +66,8 @@ const StatText = styled.div(
     }
 
     span:last-of-type {
+      flex: 1 1 auto;
+      min-width: 0;
       font-size: ${theme.fontSizeSM}px;
       color: ${theme.colorTextSecondary};
       white-space: nowrap;

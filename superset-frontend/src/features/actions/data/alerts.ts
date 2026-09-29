@@ -25,9 +25,11 @@ import {
   AlertRuleTriggerType,
 } from './types';
 
-// See data/events.ts for why this is needed: the Command Center Rails API
-// is a separate backend/origin from Superset itself.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
+// See data/events.ts for why this is needed and where the host comes from:
+// the Command Center Rails API is a separate backend/origin from Superset
+// itself.
+const COMMAND_CENTER_API_HOST =
+  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
 const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
 const describeError = (error: unknown): string =>
@@ -146,9 +148,12 @@ export const deleteAlertRule = async (
   addDangerToast: (message: string) => void,
 ): Promise<boolean> => {
   try {
+    // parseMethod: 'raw' - see disconnectSlack in data/slackIntegration.ts
+    // for why: a 204 No Content success response has no JSON body to parse.
     await SupersetClient.delete({
       ...CROSS_ORIGIN,
       endpoint: `/api/v1/alert-rules/${id}`,
+      parseMethod: 'raw',
     });
     return true;
   } catch (response) {

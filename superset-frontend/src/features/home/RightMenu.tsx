@@ -32,19 +32,23 @@ import {
 import {
   styled,
   css,
-  SupersetTheme,
+  // SupersetTheme is unused while the "About" section below is commented
+  // out - restore this import alongside that block.
+  // SupersetTheme,
   useTheme,
 } from '@apache-superset/core/theme';
 import {
   Button,
-  Tag,
   Tooltip,
   Menu,
   Icons,
   Typography,
   TelemetryPixel,
 } from '@superset-ui/core/components';
-import type { ItemType, MenuItem } from '@superset-ui/core/components/Menu';
+// ItemType is unused while the "About" section below is commented out.
+import type {
+  /* ItemType, */ MenuItem,
+} from '@superset-ui/core/components/Menu';
 import { ensureAppRoot, makeUrl } from 'src/utils/pathUtils';
 import { isEmbedded } from 'src/dashboard/util/isEmbedded';
 import { findPermission } from 'src/utils/findPermission';
@@ -527,45 +531,47 @@ const RightMenu = ({
         });
       }
 
-      if (navbarRight.version_string || navbarRight.version_sha) {
-        items.push({ type: 'divider', key: 'version-info-divider' });
-
-        const aboutItem: ItemType = {
-          type: 'group',
-          label: t('About'),
-          key: 'about-section',
-          children: [
-            {
-              key: 'about-info',
-              style: { height: 'auto', minHeight: 'auto' },
-              label: (
-                <div
-                  css={(theme: SupersetTheme) => css`
-                    font-size: ${theme.fontSizeSM}px;
-                    color: ${theme.colorTextSecondary || theme.colorText};
-                    white-space: pre-wrap;
-                    padding: ${theme.sizeUnit}px ${theme.sizeUnit * 2}px;
-                  `}
-                >
-                  {[
-                    navbarRight.show_watermark &&
-                      t('Powered by Apache Superset'),
-                    navbarRight.version_string &&
-                      `${t('Version')}: ${navbarRight.version_string}`,
-                    navbarRight.version_sha &&
-                      `${t('SHA')}: ${navbarRight.version_sha}`,
-                    navbarRight.build_number &&
-                      `${t('Build')}: ${navbarRight.build_number}`,
-                  ]
-                    .filter(Boolean)
-                    .join('\n')}
-                </div>
-              ),
-            },
-          ],
-        };
-        items.push(aboutItem);
-      }
+      // The "About" section (version/build info) is hidden for now - not
+      // deleted, so it can come back by uncommenting this block.
+      // if (navbarRight.version_string || navbarRight.version_sha) {
+      //   items.push({ type: 'divider', key: 'version-info-divider' });
+      //
+      //   const aboutItem: ItemType = {
+      //     type: 'group',
+      //     label: t('About'),
+      //     key: 'about-section',
+      //     children: [
+      //       {
+      //         key: 'about-info',
+      //         style: { height: 'auto', minHeight: 'auto' },
+      //         label: (
+      //           <div
+      //             css={(theme: SupersetTheme) => css`
+      //               font-size: ${theme.fontSizeSM}px;
+      //               color: ${theme.colorTextSecondary || theme.colorText};
+      //               white-space: pre-wrap;
+      //               padding: ${theme.sizeUnit}px ${theme.sizeUnit * 2}px;
+      //             `}
+      //           >
+      //             {[
+      //               navbarRight.show_watermark &&
+      //                 t('Powered by Apache Superset'),
+      //               navbarRight.version_string &&
+      //                 `${t('Version')}: ${navbarRight.version_string}`,
+      //               navbarRight.version_sha &&
+      //                 `${t('SHA')}: ${navbarRight.version_sha}`,
+      //               navbarRight.build_number &&
+      //                 `${t('Build')}: ${navbarRight.build_number}`,
+      //             ]
+      //               .filter(Boolean)
+      //               .join('\n')}
+      //           </div>
+      //         ),
+      //       },
+      //     ],
+      //   };
+      //   items.push(aboutItem);
+      // }
       return items;
     };
 
@@ -581,7 +587,9 @@ const RightMenu = ({
     if (!navbarRight.user_is_anonymous && showActionDropdown) {
       items.push({
         key: 'new-dropdown',
-        label: <Icons.PlusOutlined data-test="new-dropdown-icon" />,
+        label: (
+          <Icons.PlusOutlined iconSize="m" data-test="new-dropdown-icon" />
+        ),
         className: 'submenu-with-caret',
         icon: <Icons.DownOutlined iconSize="xs" />,
         children: buildNewDropdownItems(),
@@ -657,7 +665,7 @@ const RightMenu = ({
           type="columnar"
         />
       )}
-      {environmentTag?.text &&
+      {/* {environmentTag?.text &&
         (() => {
           // Map color values to Ant Design semantic colors
           const validAntDesignColors = [
@@ -682,7 +690,7 @@ const RightMenu = ({
               {environmentTag.text}
             </Tag>
           );
-        })()}
+        })()} */}
       <Menu
         css={css`
           display: flex;
@@ -697,6 +705,24 @@ const RightMenu = ({
             content: none !important;
           }
 
+          /* This renders directly on the solid brand-color header bar (see
+             Menu.tsx's StyledHeader), so its icons stay white in every
+             state instead of antd's default dark icon color. !important
+             because antd's own icon color rule and this emotion css-prop
+             rule have matching specificity - which one wins the cascade
+             otherwise depends on CSS-in-JS injection order, which isn't
+             stable across renders. */
+          .anticon {
+            color: ${theme.colorWhite} !important;
+          }
+
+          /* Same story as .anticon above: the "Settings" label text is a
+             separate element from its icon, and antd's default dark text
+             color otherwise wins the cascade in the same unstable way. */
+          .submenu-with-caret .ant-menu-title-content {
+            color: ${theme.colorWhite} !important;
+          }
+
           .submenu-with-caret {
             height: 100%;
             padding: 0;
@@ -709,12 +735,6 @@ const RightMenu = ({
             }
             &.ant-menu-submenu::after {
               inset-inline: ${theme.sizeUnit}px;
-            }
-            &.ant-menu-submenu:hover,
-            &.ant-menu-submenu-active {
-              .ant-menu-title-content {
-                color: ${theme.colorPrimary};
-              }
             }
           }
         `}

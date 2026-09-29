@@ -20,4 +20,7 @@ superset fab create-admin \
 echo "==> Running superset init (roles, permissions, examples skipped)"
 superset init
 
+echo "==> Setting the default landing dashboard for all users"
+python scripts/set_welcome_dashboard.py || true
+
 echo "==> Done. Start the app with: ./scripts/run_backend.sh"

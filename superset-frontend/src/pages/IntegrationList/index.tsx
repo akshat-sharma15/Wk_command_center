@@ -53,23 +53,19 @@ import DisabledIntegrationCard from 'src/features/actions/DisabledIntegrationCar
 const CardsGrid = styled.div(
   ({ theme }) => css`
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: ${theme.sizeUnit * 4}px;
     /* Same page gutter/max-width as the other listing pages' ListView
        container (see ListView.tsx's .superset-list-view), so Integration
        lines up with Dashboards/Charts/Datasets instead of using its own
        narrower measurements. */
     max-width: 1600px;
-    margin: ${theme.sizeUnit * 4}px auto 0;
+    // margin: ${theme.sizeUnit * 4}px auto 0;
     padding: 0 ${theme.sizeUnit * 8}px;
 
+    /* One card per row, each spanning the full content width. */
     > * {
-      /* Bounded rather than stretched to the full container width - each
-         card is a single status/action row, and a card's space-between
-         body reads as broken when stretched to ~1500px wide. Wraps
-         naturally into a multi-column grid instead of one-per-row. */
-      flex: 1 1 320px;
-      max-width: 400px;
+      width: 100%;
     }
   `,
 );

@@ -199,10 +199,24 @@ const ScopeBar = styled.div`
     font-size: ${theme.fontSizeSM}px;
 
     .scope-label {
-      color: ${theme.colorTextSecondary};
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: ${theme.sizeUnit}px ${theme.sizeUnit * 2}px;
+      border-radius: ${theme.borderRadius}px;
+      background: ${theme.colorPrimaryBg};
+      color: ${theme.colorPrimaryText};
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    /* The exit-scope button is a real bordered action here, not a bare
+       link floating next to the scope chip - buttonStyle="link" renders
+       as plain colorLink (brand green) text with no button affordance of
+       its own, which read as two unrelated, inconsistently-styled bits
+       rather than one "you're scoped / leave scope" control. */
+    .superset-button {
+      flex: 0 0 auto;
     }
   `}
 `;
@@ -411,7 +425,7 @@ export default function AiChatWidget() {
               </span>
               <Button
                 buttonSize="xsmall"
-                buttonStyle="link"
+                buttonStyle="secondary"
                 onClick={handleBackToGeneral}
                 data-test="ai-chat-exit-chart-scope"
               >

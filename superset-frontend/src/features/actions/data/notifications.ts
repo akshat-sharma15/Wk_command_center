@@ -19,9 +19,11 @@
 import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
 
-// See data/events.ts for why this is needed: the Command Center Rails API
-// is a separate backend/origin from Superset itself.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
+// See data/events.ts for why this is needed and where the host comes from:
+// the Command Center Rails API is a separate backend/origin from Superset
+// itself.
+const COMMAND_CENTER_API_HOST =
+  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
 const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
 export interface NotificationRecord {
@@ -135,6 +137,23 @@ export const markNotificationRead = async (
     await reportError(response, addDangerToast, t('Error while marking notification read'));
     return null;
   }
+};
+
+/**
+ * There's no bulk "mark all read" endpoint on the Rails side, so this
+ * fires the existing per-notification PATCH for each unread id and waits
+ * for all of them - a reasonable client-side stand-in for a handful of
+ * notifications, without needing a new backend endpoint.
+ */
+export const markAllNotificationsRead = async (
+  userId: number,
+  unreadIds: number[],
+  addDangerToast: (message: string) => void,
+): Promise<boolean> => {
+  const results = await Promise.all(
+    unreadIds.map(id => markNotificationRead(userId, id, addDangerToast)),
+  );
+  return results.every(result => result !== null);
 };
 
 /**

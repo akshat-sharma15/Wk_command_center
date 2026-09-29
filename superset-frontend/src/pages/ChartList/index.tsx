@@ -739,19 +739,21 @@ function ChartList(props: ChartListProps) {
         dropdownStyle: { minWidth: WIDER_DROPDOWN_WIDTH },
       },
       ...(userId ? [favoritesFilter] : []),
-      {
-        Header: t('Certified'),
-        key: 'certified',
-        id: 'id',
-        urlDisplay: 'certified',
-        input: 'select',
-        operator: FilterOperator.ChartIsCertified,
-        unfilteredLabel: t('Any'),
-        selects: [
-          { label: t('Yes'), value: true },
-          { label: t('No'), value: false },
-        ],
-      },
+      // The "Certified" filter is hidden for now - not deleted, so it can
+      // come back by uncommenting this entry.
+      // {
+      //   Header: t('Certified'),
+      //   key: 'certified',
+      //   id: 'id',
+      //   urlDisplay: 'certified',
+      //   input: 'select',
+      //   operator: FilterOperator.ChartIsCertified,
+      //   unfilteredLabel: t('Any'),
+      //   selects: [
+      //     { label: t('Yes'), value: true },
+      //     { label: t('No'), value: false },
+      //   ],
+      // },
       {
         Header: t('Modified by'),
         key: 'changed_by',
@@ -864,7 +866,7 @@ function ChartList(props: ChartListProps) {
   if (canDelete || canExport) {
     subMenuButtons.push({
       name: t('Bulk select'),
-      buttonStyle: 'secondary',
+      buttonStyle: 'primary',
       'data-test': 'bulk-select',
       onClick: toggleBulkSelect,
     });

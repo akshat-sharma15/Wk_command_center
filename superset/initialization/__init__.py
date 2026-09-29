@@ -197,7 +197,9 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         )
         from superset.views.alerts import AlertView, ReportView
         from superset.views.all_entities import TaggedObjectsModelView
-        from superset.views.annotations import AnnotationLayerView
+        # AnnotationLayerView is unused while its Settings-menu registration
+        # below is commented out.
+        # from superset.views.annotations import AnnotationLayerView
         from superset.views.api import Api
         from superset.views.chart.views import SliceModelView
         from superset.views.core import Superset
@@ -530,16 +532,18 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
             menu_cond=lambda: feature_flag_manager.is_feature_enabled("ALERT_REPORTS"),
         )
 
-        appbuilder.add_view(
-            AnnotationLayerView,
-            "Annotation Layers",
-            label=_("Annotation Layers"),
-            href="AnnotationLayerView.list",
-            icon="fa-comment",
-            category_icon="",
-            category="Manage",
-            category_label=_("Manage"),
-        )
+        # Annotation Layers is hidden from the Settings menu for now - not
+        # deleted, so it can come back by uncommenting this registration.
+        # appbuilder.add_view(
+        #     AnnotationLayerView,
+        #     "Annotation Layers",
+        #     label=_("Annotation Layers"),
+        #     href="AnnotationLayerView.list",
+        #     icon="fa-comment",
+        #     category_icon="",
+        #     category="Manage",
+        #     category_label=_("Manage"),
+        # )
 
         appbuilder.add_view(
             RowLevelSecurityView,

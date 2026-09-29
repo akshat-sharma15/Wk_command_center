@@ -27,7 +27,14 @@ import { EventRecord } from './types';
 // passed per-call rather than configuring a second SupersetClient
 // instance, since every other call in this app should keep hitting
 // Superset's own backend unaffected.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
+//
+// The host itself comes from COMMAND_CENTER_API_ORIGIN in the repo-root
+// .env (baked in at build time by webpack.config.js's DefinePlugin) - the
+// same variable superset_config.py reads for its CSP allowlist, so the two
+// never drift out of sync. Change that one value, restart both dev
+// servers, and every file below picks it up automatically.
+const COMMAND_CENTER_API_HOST =
+  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
 const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
 interface BackendEventDefinition {
@@ -150,9 +157,12 @@ export const deleteEvent = async (
   addDangerToast: (message: string) => void,
 ): Promise<boolean> => {
   try {
+    // parseMethod: 'raw' - see disconnectSlack in data/slackIntegration.ts
+    // for why: a 204 No Content success response has no JSON body to parse.
     await SupersetClient.delete({
       ...CROSS_ORIGIN,
       endpoint: `/api/v1/events/${id}`,
+      parseMethod: 'raw',
     });
     return true;
   } catch (response) {

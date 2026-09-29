@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { Icons } from '@superset-ui/core/components/Icons';
 import SubMenu from 'src/features/home/SubMenu';
 import {
   ListView,
+  ListViewActionsBar,
   ListViewFilterOperator as FilterOperator,
+  type ListViewActionProps,
   type ListViewFilters,
 } from 'src/components';
 import withToasts from 'src/components/MessageToasts/withToasts';
@@ -59,49 +62,83 @@ interface EventListProps {
   addSuccessToast: (msg: string) => void;
 }
 
-function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
+function EventList({
+  addDangerToast,
+  addSuccessToast,
+}: EventListProps) {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
   const refreshData = useCallback(() => {
     setLoading(true);
+
     fetchEvents(addDangerToast).then(items => {
       setEvents(items);
       setLoading(false);
     });
   }, [addDangerToast]);
+
   useEffect(() => {
     refreshData();
   }, [refreshData]);
-  const { rows, count, fetchData } = useMockListState<EventRecord>(events);
+
+  const { rows, count, fetchData } =
+    useMockListState<EventRecord>(events);
+
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Used to force a fresh EventModal instance when creating a new incident.
   const [modalInstanceKey, setModalInstanceKey] = useState(0);
-  const [eventBeingEdited, setEventBeingEdited] = useState<EventRecord | null>(
-    null,
-  );
+
+  const [eventBeingEdited, setEventBeingEdited] =
+    useState<EventRecord | null>(null);
 
   const handleSave = useCallback(
-    (input: { name: string; groupId: string; eventTypeId: string }) => {
+    (input: {
+      name: string;
+      groupId: string;
+      eventTypeId: string;
+    }) => {
       const save = eventBeingEdited
-        ? updateEvent(eventBeingEdited.id, input, addDangerToast)
+        ? updateEvent(
+            eventBeingEdited.id,
+            input,
+            addDangerToast,
+          )
         : createEvent(input, addDangerToast);
+
       save.then(saved => {
-        if (!saved) return; // error already toasted by data/events.ts
+        if (!saved) return;
+
         setModalOpen(false);
         setEventBeingEdited(null);
         refreshData();
+
         addSuccessToast(
-          eventBeingEdited ? t('Incident updated') : t('Incident created'),
+          eventBeingEdited
+            ? t('Incident updated')
+            : t('Incident created'),
         );
       });
     },
-    [eventBeingEdited, refreshData, addSuccessToast, addDangerToast],
+    [
+      eventBeingEdited,
+      refreshData,
+      addSuccessToast,
+      addDangerToast,
+    ],
   );
 
   const kpiItems: KpiStripItem[] = useMemo(() => {
     const counts = new Map<string, number>();
+
     events.forEach(event => {
-      counts.set(event.groupId, (counts.get(event.groupId) ?? 0) + 1);
+      counts.set(
+        event.groupId,
+        (counts.get(event.groupId) ?? 0) + 1,
+      );
     });
+
     return [
       {
         key: 'total',
@@ -111,7 +148,10 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
       },
       ...EVENT_GROUP_OPTIONS.map(group => ({
         key: group.id,
-        icon: GROUP_ICONS[group.id] ?? <Icons.WarningOutlined />,
+        icon:
+          GROUP_ICONS[group.id] ?? (
+            <Icons.WarningOutlined />
+          ),
         label: group.label,
         value: counts.get(group.id) ?? 0,
       })),
@@ -120,17 +160,31 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
 
   const columns = useMemo(
     () => [
-      { accessor: 'name', Header: t('Name'), id: 'name', size: 'xl' },
       {
-        Cell: ({ row: { original } }: { row: { original: EventRecord } }) =>
-          findEventGroupOption(original.groupId)?.label ?? original.groupId,
+        accessor: 'name',
+        Header: t('Name'),
+        id: 'name',
+        size: 'xl',
+      },
+      {
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: EventRecord };
+        }) =>
+          findEventGroupOption(original.groupId)?.label ??
+          original.groupId,
         accessor: 'groupId',
         Header: t('Group'),
         id: 'groupId',
         size: 'lg',
       },
       {
-        Cell: ({ row: { original } }: { row: { original: EventRecord } }) =>
+        Cell: ({
+          row: { original },
+        }: {
+          row: { original: EventRecord };
+        }) =>
           findEventTypeOption(original.eventTypeId)?.label ??
           original.eventTypeId,
         accessor: 'eventTypeId',
@@ -143,6 +197,28 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         Header: t('Last modified'),
         id: 'changed_on_delta_humanized',
         size: 'lg',
+      },
+      {
+        Cell: ({ row: { original } }: { row: { original: EventRecord } }) => {
+          const actions: ListViewActionProps[] = [
+            {
+              label: 'edit-action',
+              tooltip: t('Edit incident'),
+              placement: 'bottom',
+              icon: 'EditOutlined',
+              onClick: () => {
+                setEventBeingEdited(original);
+                setModalInstanceKey(key => key + 1);
+                setModalOpen(true);
+              },
+            },
+          ];
+          return <ListViewActionsBar actions={actions} />;
+        },
+        Header: t('Actions'),
+        id: 'actions',
+        disableSortBy: true,
+        size: 'md',
       },
     ],
     [],
@@ -192,6 +268,7 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
           },
         ]}
       />
+
       <EventModal
         key={modalInstanceKey}
         show={modalOpen}
@@ -202,7 +279,9 @@ function EventList({ addDangerToast, addSuccessToast }: EventListProps) {
         }}
         onSave={handleSave}
       />
+
       <KpiStrip items={kpiItems} />
+
       <ListView<EventRecord>
         className="event-list-view"
         columns={columns}

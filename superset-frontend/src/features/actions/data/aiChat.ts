@@ -19,9 +19,11 @@
 import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
 
-// See data/events.ts for why this is needed: the Command Center Rails API
-// is a separate backend/origin from Superset itself.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
+// See data/events.ts for why this is needed and where the host comes from:
+// the Command Center Rails API is a separate backend/origin from Superset
+// itself.
+const COMMAND_CENTER_API_HOST =
+  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
 const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
 
 export interface AiChatResponse {

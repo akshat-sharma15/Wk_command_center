@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
@@ -30,6 +30,7 @@ import {
   fetchUnreadNotifications,
   fetchSseTicket,
   markNotificationRead,
+  markAllNotificationsRead,
   notificationStreamUrl,
   NotificationRecord,
 } from './data/notifications';
@@ -69,7 +70,16 @@ const BellButton = styled.button`
 
     .anticon {
       color: ${theme.colorWhite};
-      font-size: 24px;
+    }
+
+    /* Sized directly on the svg (matching AiChatWidget's launcher button)
+       rather than via .anticon's font-size: antd's own icon font-size rule
+       has matching specificity and wins unpredictably depending on
+       CSS-in-JS injection order, same class of bug as elsewhere in the
+       header (see Menu.tsx/RightMenu.tsx). */
+    svg {
+      width: 24px !important;
+      height: 24px !important;
     }
   `}
 `;
@@ -83,14 +93,49 @@ const PanelContainer = styled.div`
 
 const PanelHeader = styled.div`
   ${({ theme }) => `
-    font-weight: ${theme.fontWeightStrong};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${theme.sizeUnit * 2}px;
     padding: ${theme.sizeUnit * 2}px ${theme.sizeUnit * 3}px;
     border-bottom: 1px solid ${theme.colorBorder};
+
+    .panel-title {
+      font-weight: ${theme.fontWeightStrong};
+      color: ${theme.colorText};
+    }
+
+    .mark-all-read {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: ${theme.fontSizeSM}px;
+      color: ${theme.colorPrimary};
+      cursor: pointer;
+
+      &:disabled {
+        color: ${theme.colorTextDisabled};
+        cursor: not-allowed;
+      }
+    }
   `}
 `;
 
 const PanelBody = styled.div`
   overflow-y: auto;
+`;
+
+const PanelFooter = styled.div`
+  ${({ theme }) => `
+    padding: ${theme.sizeUnit * 2}px ${theme.sizeUnit * 3}px;
+    border-top: 1px solid ${theme.colorBorder};
+    text-align: center;
+
+    a {
+      font-size: ${theme.fontSizeSM}px;
+      color: ${theme.colorPrimary};
+    }
+  `}
 `;
 
 const NotificationItem = styled.div<{ read: boolean }>`
@@ -189,9 +234,39 @@ export default function NotificationBell() {
     history.push(`/notification/${notification.id}`);
   };
 
+  const unreadIds = useMemo(
+    () => notifications.filter(item => !item.read).map(item => item.id),
+    [notifications],
+  );
+
+  const handleMarkAllRead = () => {
+    if (!userId || unreadIds.length === 0) return;
+    markAllNotificationsRead(userId, unreadIds, danger).then(success => {
+      if (!success) return;
+      setNotifications(prev => prev.map(item => ({ ...item, read: true })));
+      setUnreadCount(0);
+    });
+  };
+
+  const handleViewAll = () => {
+    setVisible(false);
+    history.push('/notification/list/');
+  };
+
   const content = (
     <PanelContainer>
-      <PanelHeader>{t('Notifications')}</PanelHeader>
+      <PanelHeader>
+        <span className="panel-title">{t('Notifications')}</span>
+        <button
+          type="button"
+          className="mark-all-read"
+          disabled={unreadIds.length === 0}
+          onClick={handleMarkAllRead}
+          data-test="mark-all-read"
+        >
+          {t('Mark all as read')}
+        </button>
+      </PanelHeader>
       <PanelBody>
         {notifications.length === 0 ? (
           <EmptyState>{t('No notifications')}</EmptyState>
@@ -209,6 +284,16 @@ export default function NotificationBell() {
           ))
         )}
       </PanelBody>
+      <PanelFooter>
+        <a
+          role="button"
+          tabIndex={0}
+          onClick={handleViewAll}
+          data-test="notification-view-all"
+        >
+          {t('View all notifications')}
+        </a>
+      </PanelFooter>
     </PanelContainer>
   );
 
@@ -234,7 +319,13 @@ export default function NotificationBell() {
           <Badge
             count={unreadCount}
             size="small"
-            offset={[-2, 2]}
+            // Badge positions itself relative to its child - the 24px icon,
+            // not the 56px button - so its default corner sits well inside
+            // the circle. Pushed out to the button's own outer edge instead
+            // of overlapping the icon glyph as the count grows to 2-3
+            // digits (offset tuned against the icon's 16px inset within
+            // the button, not just eyeballed).
+            offset={[16, -16]}
             overflowCount={99}
             color={theme.colorError}
           >

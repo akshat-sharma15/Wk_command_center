@@ -100,11 +100,11 @@ const StyledHeader = styled.div<{ backgroundColor?: string }>`
       border-radius: 0;
       font-size: ${({ theme }) => theme.fontSizeSM}px;
       padding: ${({ theme }) => theme.sizeUnit}px
-        ${({ theme }) => theme.sizeUnit * 4}px;
+        ${({ theme }) => theme.sizeUnit * 6}px;
       margin-right: 0;
       position: relative;
 
-      &:not(:last-child)::after {
+      &::after {
         content: '';
         position: absolute;
         top: 50%;
@@ -112,7 +112,7 @@ const StyledHeader = styled.div<{ backgroundColor?: string }>`
         transform: translateY(-50%);
         width: 1px;
         height: ${({ theme }) => theme.sizeUnit * 4}px;
-        background: ${({ theme }) => theme.colorSplit};
+        background: ${({ theme }) => theme.colorTextTertiary};
       }
     }
     .ant-menu-item:hover,

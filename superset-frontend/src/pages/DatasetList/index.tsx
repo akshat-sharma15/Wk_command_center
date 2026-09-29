@@ -610,19 +610,21 @@ const DatasetList: FunctionComponent<DatasetListProps> = ({
         paginate: true,
         dropdownStyle: { minWidth: WIDER_DROPDOWN_WIDTH },
       },
-      {
-        Header: t('Certified'),
-        key: 'certified',
-        id: 'id',
-        urlDisplay: 'certified',
-        input: 'select',
-        operator: FilterOperator.DatasetIsCertified,
-        unfilteredLabel: t('Any'),
-        selects: [
-          { label: t('Yes'), value: true },
-          { label: t('No'), value: false },
-        ],
-      },
+      // The "Certified" filter is hidden for now - not deleted, so it can
+      // come back by uncommenting this entry.
+      // {
+      //   Header: t('Certified'),
+      //   key: 'certified',
+      //   id: 'id',
+      //   urlDisplay: 'certified',
+      //   input: 'select',
+      //   operator: FilterOperator.DatasetIsCertified,
+      //   unfilteredLabel: t('Any'),
+      //   selects: [
+      //     { label: t('Yes'), value: true },
+      //     { label: t('No'), value: false },
+      //   ],
+      // },
       {
         Header: t('Modified by'),
         key: 'changed_by',
@@ -679,7 +681,7 @@ const DatasetList: FunctionComponent<DatasetListProps> = ({
     buttonArr.push({
       name: t('Bulk select'),
       onClick: toggleBulkSelect,
-      buttonStyle: 'secondary',
+      buttonStyle: 'primary',
     });
   }
 

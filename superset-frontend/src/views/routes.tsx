@@ -212,6 +212,13 @@ const NotificationDetail = lazy(
     ),
 );
 
+const NotificationList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "NotificationList" */ 'src/pages/NotificationList'
+    ),
+);
+
 type Routes = {
   path: string;
   Component: ComponentType;
@@ -366,6 +373,13 @@ export const routes: Routes = [
   {
     path: '/action-alert/list/',
     Component: ActionAlertList,
+  },
+  {
+    // Must come before /notification/:notificationId below - Switch takes
+    // the first match, and that dynamic segment would otherwise also match
+    // this path (treating "list" as the id).
+    path: '/notification/list/',
+    Component: NotificationList,
   },
   {
     path: '/notification/:notificationId',

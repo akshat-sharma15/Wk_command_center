@@ -21,7 +21,7 @@ import { useHistory } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import { styled, useTheme } from '@apache-superset/core/theme';
-import { Badge, Popover } from '@superset-ui/core/components';
+import { Badge, Popover, Tag } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { addDangerToast } from 'src/components/MessageToasts/actions';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
@@ -34,6 +34,7 @@ import {
   notificationStreamUrl,
   NotificationRecord,
 } from './data/notifications';
+import { IncidentCard, INCIDENT_UPDATE_EVENT } from './data/incidents';
 
 const FloatingWrapper = styled.div`
   ${({ theme }) => `
@@ -155,6 +156,43 @@ const NotificationItem = styled.div<{ read: boolean }>`
   `}
 `;
 
+const IncidentLine = styled.div`
+  ${({ theme }) => `
+    margin-top: ${theme.sizeUnit}px;
+    color: ${theme.colorTextSecondary};
+    font-size: ${theme.fontSizeSM}px;
+    font-weight: ${theme.fontWeightNormal};
+
+    .ant-tag {
+      margin-inline-end: ${theme.sizeUnit}px;
+      font-size: ${theme.fontSizeSM - 1}px;
+      line-height: 16px;
+    }
+  `}
+`;
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'error',
+  warning: 'warning',
+  info: 'processing',
+};
+
+// One compact line from the shared incident card: the same facts Slack shows.
+const incidentSummary = (incident: IncidentCard) =>
+  [
+    incident.vehicle,
+    incident.route ?? incident.hub,
+    incident.delay_minutes != null ? `+${incident.delay_minutes} min` : null,
+    incident.waybill_count != null
+      ? `${incident.waybill_count} waybills`
+      : null,
+    incident.revenue_risk != null
+      ? `₹${Math.round(incident.revenue_risk).toLocaleString('en-IN')}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
 const EmptyState = styled.div`
   ${({ theme }) => `
     padding: ${theme.sizeUnit * 4}px ${theme.sizeUnit * 3}px;
@@ -195,16 +233,81 @@ export default function NotificationBell() {
     });
 
     let cancelled = false;
-    fetchSseTicket(userId, danger).then(ticket => {
-      if (!ticket || cancelled) return;
-      const source = new EventSource(notificationStreamUrl(ticket));
-      eventSourceRef.current = source;
-      source.addEventListener('notification', (event: MessageEvent) => {
-        const notification = JSON.parse(event.data) as NotificationRecord;
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-      });
-    });
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const baseReconnectDelay = 1000; // Start at 1s, exponential backoff
+
+    const connectStream = async () => {
+      if (cancelled) return;
+
+      try {
+        const ticket = await fetchSseTicket(userId, danger);
+        if (!ticket || cancelled) return;
+
+        reconnectAttempts = 0; // Reset on successful connection
+        const source = new EventSource(notificationStreamUrl(ticket));
+        eventSourceRef.current = source;
+
+        source.addEventListener('notification', (event: MessageEvent) => {
+          const notification = JSON.parse(event.data) as NotificationRecord;
+          setNotifications(prev => [notification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+        });
+
+        // Status/assignment changes made by anyone (in-app or from a Slack
+        // link): refresh matching items and let an open incident page
+        // reload - over this same stream, no second connection.
+        source.addEventListener('incident_update', (event: MessageEvent) => {
+          const update = JSON.parse(event.data) as {
+            alert_id: number;
+            incident: IncidentCard | null;
+          };
+          setNotifications(prev =>
+            prev.map(item =>
+              item.alert_id === update.alert_id
+                ? { ...item, incident: update.incident }
+                : item,
+            ),
+          );
+          window.dispatchEvent(
+            new CustomEvent(INCIDENT_UPDATE_EVENT, { detail: update }),
+          );
+        });
+
+        source.addEventListener('error', () => {
+          // EventSource error - likely 401 from expired ticket or network error
+          source.close();
+          eventSourceRef.current = null;
+
+          if (!cancelled) {
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, then stop retrying
+            const delay = Math.min(
+              baseReconnectDelay * Math.pow(2, reconnectAttempts),
+              30000, // Cap at 30s
+            );
+            reconnectAttempts += 1;
+
+            if (reconnectAttempts <= maxReconnectAttempts) {
+              setTimeout(connectStream, delay);
+            }
+          }
+        });
+      } catch (error) {
+        // Error fetching ticket - don't retry, rely on normal effect re-run
+        if (!cancelled) {
+          reconnectAttempts += 1;
+          if (reconnectAttempts <= maxReconnectAttempts) {
+            const delay = Math.min(
+              baseReconnectDelay * Math.pow(2, reconnectAttempts),
+              30000,
+            );
+            setTimeout(connectStream, delay);
+          }
+        }
+      }
+    };
+
+    connectStream();
 
     return () => {
       cancelled = true;
@@ -231,7 +334,13 @@ export default function NotificationBell() {
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
-    history.push(`/notification/${notification.id}`);
+    // Incidents drill into the incident itself; others keep the
+    // notification page.
+    history.push(
+      notification.incident
+        ? `/incident/${notification.alert_id}`
+        : `/notification/${notification.id}`,
+    );
   };
 
   const unreadIds = useMemo(
@@ -280,6 +389,19 @@ export default function NotificationBell() {
               onClick={() => handleSelectNotification(notification)}
             >
               {notification.title}
+              {notification.incident && (
+                <IncidentLine>
+                  <Tag color={SEVERITY_COLORS[notification.incident.severity]}>
+                    {notification.incident.severity}
+                  </Tag>
+                  <Tag>
+                    {notification.incident.status
+                      .replace('_', ' ')
+                      .toUpperCase()}
+                  </Tag>
+                  {incidentSummary(notification.incident)}
+                </IncidentLine>
+              )}
             </NotificationItem>
           ))
         )}

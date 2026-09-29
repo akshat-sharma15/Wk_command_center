@@ -193,6 +193,7 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
             ActionAlertListView,
             EventListView,
             IntegrationListView,
+            IncidentDetailView,
             NotificationDetailView,
         )
         from superset.views.alerts import AlertView, ReportView
@@ -452,6 +453,7 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         appbuilder.add_view_no_menu(ExplorePermalinkView)
         appbuilder.add_view_no_menu(IntegrationListView)
         appbuilder.add_view_no_menu(NotificationDetailView)
+        appbuilder.add_view_no_menu(IncidentDetailView)
         appbuilder.add_view_no_menu(SavedQueryView)
         appbuilder.add_view_no_menu(SqllabView)
         appbuilder.add_view_no_menu(Superset)

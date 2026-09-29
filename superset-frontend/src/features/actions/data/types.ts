@@ -64,7 +64,14 @@ export interface EventRecord {
   changed_on_delta_humanized: string;
 }
 
-export type AlertRuleOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'contains';
+export type AlertRuleOperator =
+  | '='
+  | '!='
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  | 'contains';
 
 export type AlertRuleSeverity = 'info' | 'warning' | 'critical';
 
@@ -114,6 +121,14 @@ export interface AlertRuleRecord {
   recipient_id: number | null;
   recipient_name: string | null;
   notification_channels: AlertRuleNotificationChannel[];
+  /** Responsible person/team (who owns the incident) - distinct from recipients. */
+  primary_assignee_type: AlertRuleRecipientType | null;
+  primary_assignee_id: number | null;
+  primary_assignee_name: string | null;
+  secondary_assignee_type: AlertRuleRecipientType | null;
+  secondary_assignee_id: number | null;
+  secondary_assignee_name: string | null;
+  escalation_after_minutes: number | null;
   enabled: boolean;
   created_at: string;
   updated_at: string;

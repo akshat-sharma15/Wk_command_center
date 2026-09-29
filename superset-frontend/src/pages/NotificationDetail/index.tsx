@@ -30,6 +30,7 @@ import {
   fetchNotificationById,
   NotificationRecord,
 } from 'src/features/actions/data/notifications';
+import IncidentPanel from 'src/features/actions/IncidentPanel';
 
 const DescriptionsContainer = styled.div`
   ${({ theme }) => css`
@@ -90,6 +91,10 @@ export default function NotificationDetail() {
             </Descriptions.Item>
           </Descriptions>
         </DescriptionsContainer>
+      )}
+      {/* Advanced incidents: the shared incident detail + actions. */}
+      {!loading && notification?.incident && (
+        <IncidentPanel alertId={notification.alert_id} />
       )}
     </>
   );

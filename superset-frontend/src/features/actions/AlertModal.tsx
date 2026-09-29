@@ -128,6 +128,15 @@ export default function AlertModal({
     alertRule?.notification_channels ?? [],
   );
 
+  const [primaryAssigneeId, setPrimaryAssigneeId] = useState<
+    number | undefined
+  >(alertRule?.primary_assignee_id ?? undefined);
+  const [secondaryAssigneeId, setSecondaryAssigneeId] = useState<
+    number | undefined
+  >(alertRule?.secondary_assignee_id ?? undefined);
+  const [escalationAfterMinutes, setEscalationAfterMinutes] = useState<
+    number | undefined
+  >(alertRule?.escalation_after_minutes ?? undefined);
   const [groupOptions, setGroupOptions] = useState<AlertRuleGroupOption[]>([]);
   const [fieldOptions, setFieldOptions] = useState<AlertRuleFieldOption[]>([]);
   const [valueOptions, setValueOptions] = useState<string[] | null>(null);
@@ -180,10 +189,12 @@ export default function AlertModal({
 
   // Recipient=User options are only fetched the first time that recipient
   // type is actually selected, since most alerts will use Role.
+  // Also needed for the primary point of contact (always a user).
   useEffect(() => {
-    if (recipientType !== 'user' || userOptions.length > 0) return;
+    if (userOptions.length > 0) return;
+    if (recipientType !== 'user' && !show) return;
     fetchAlertRecipientUsers(addDangerToast).then(setUserOptions);
-  }, [recipientType, userOptions.length, addDangerToast]);
+  }, [recipientType, show, userOptions.length, addDangerToast]);
 
   const selectedFieldMeta = useMemo(
     () => fieldOptions.find(option => option.key === field),
@@ -264,6 +275,9 @@ export default function AlertModal({
       recipientId: recipientId ?? null,
       notificationChannels,
       enabled: alertRule?.enabled ?? true,
+      primaryAssigneeId: primaryAssigneeId ?? null,
+      secondaryAssigneeId: secondaryAssigneeId ?? null,
+      escalationAfterMinutes: escalationAfterMinutes ?? null,
     });
   };
 
@@ -472,6 +486,54 @@ export default function AlertModal({
           </FieldContainer>
         </>
       )}
+      <FieldContainer>
+        <div className="control-label">{t('Primary point of contact')}</div>
+        <Select
+          ariaLabel={t('Primary point of contact')}
+          allowClear
+          options={userOptions.map(user => ({
+            label: user.name,
+            value: user.id,
+          }))}
+          value={primaryAssigneeId}
+          onChange={(v: number | undefined) => {
+            setPrimaryAssigneeId(v);
+            if (!v) setSecondaryAssigneeId(undefined);
+          }}
+        />
+      </FieldContainer>
+      <FieldContainer>
+        <div className="control-label">{t('Secondary point of contact')}</div>
+        <Select
+          ariaLabel={t('Secondary point of contact')}
+          allowClear
+          disabled={!primaryAssigneeId}
+          placeholder={
+            primaryAssigneeId ? undefined : t('Select a primary contact first')
+          }
+          options={roleOptions.map(role => ({
+            label: role.name,
+            value: role.id,
+          }))}
+          value={secondaryAssigneeId}
+          onChange={(v: number | undefined) => setSecondaryAssigneeId(v)}
+        />
+      </FieldContainer>
+      <FieldContainer>
+        <div className="control-label">{t('Escalate after (minutes)')}</div>
+        <Input
+          name="escalation_after_minutes"
+          type="number"
+          min={1}
+          disabled={!secondaryAssigneeId}
+          value={escalationAfterMinutes ?? ''}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            setEscalationAfterMinutes(
+              event.target.value ? Number(event.target.value) : undefined,
+            )
+          }
+        />
+      </FieldContainer>
     </Modal>
   );
 }

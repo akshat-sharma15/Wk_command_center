@@ -63,7 +63,11 @@ export const fetchAlertRules = async (
     });
     return json as AlertRuleRecord[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching alerts'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching alerts'),
+    );
     return [];
   }
 };
@@ -82,6 +86,11 @@ export interface AlertRuleInput {
   recipientId: number | null;
   notificationChannels: string[];
   enabled: boolean;
+  /** Primary point of contact: a Superset user. */
+  primaryAssigneeId: number | null;
+  /** Secondary (escalation) point of contact: a Superset role/team. */
+  secondaryAssigneeId: number | null;
+  escalationAfterMinutes: number | null;
 }
 
 // The two trigger modes are mutually exclusive on the backend (see
@@ -105,6 +114,15 @@ const toAlertRulePayload = (input: AlertRuleInput) => ({
     recipient_id: input.notify ? input.recipientId : null,
     notification_channels: input.notify ? input.notificationChannels : [],
     enabled: input.enabled,
+    primary_assignee_type: input.primaryAssigneeId ? 'user' : null,
+    primary_assignee_id: input.primaryAssigneeId,
+    // A secondary contact is only meaningful alongside a primary one.
+    secondary_assignee_type:
+      input.primaryAssigneeId && input.secondaryAssigneeId ? 'role' : null,
+    secondary_assignee_id: input.primaryAssigneeId
+      ? input.secondaryAssigneeId
+      : null,
+    escalation_after_minutes: input.escalationAfterMinutes,
   },
 });
 
@@ -120,7 +138,11 @@ export const createAlertRule = async (
     });
     return json as AlertRuleRecord;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while creating alert'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while creating alert'),
+    );
     return null;
   }
 };
@@ -138,7 +160,11 @@ export const updateAlertRule = async (
     });
     return json as AlertRuleRecord;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while updating alert'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while updating alert'),
+    );
     return null;
   }
 };
@@ -157,7 +183,11 @@ export const deleteAlertRule = async (
     });
     return true;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while deleting alert'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while deleting alert'),
+    );
     return false;
   }
 };
@@ -174,7 +204,11 @@ export const fetchAlertGroups = async (
     });
     return json as AlertRuleGroupOption[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching alert groups'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching alert groups'),
+    );
     return [];
   }
 };
@@ -190,7 +224,11 @@ export const fetchAlertGroupFields = async (
     });
     return json as AlertRuleFieldOption[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching fields'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching fields'),
+    );
     return [];
   }
 };
@@ -238,7 +276,11 @@ export const fetchAlertRecipientUsers = async (
     });
     return json as AlertRecipientUser[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching users'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching users'),
+    );
     return [];
   }
 };

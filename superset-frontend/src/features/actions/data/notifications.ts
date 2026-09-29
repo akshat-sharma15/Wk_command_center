@@ -18,6 +18,7 @@
  */
 import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
+import type { IncidentCard } from './incidents';
 
 // See data/events.ts for why this is needed and where the host comes from:
 // the Command Center Rails API is a separate backend/origin from Superset
@@ -34,6 +35,8 @@ export interface NotificationRecord {
   title: string;
   message: string;
   metadata: Record<string, unknown> | null;
+  /** Shared incident card (same content as Slack); null for ordinary alerts. */
+  incident?: IncidentCard | null;
   read: boolean;
   read_at: string | null;
   delivered_at: string | null;
@@ -63,7 +66,9 @@ async function reportError(
 // SupersetUserIdentifiable on the Rails side for why (Superset's own
 // already-authenticated session, read here from Redux state hydrated from
 // Superset's bootstrap data - see NotificationBell.tsx).
-const identityHeaders = (userId: number) => ({ 'X-Superset-User-Id': String(userId) });
+const identityHeaders = (userId: number) => ({
+  'X-Superset-User-Id': String(userId),
+});
 
 export const fetchNotifications = async (
   userId: number,
@@ -72,12 +77,17 @@ export const fetchNotifications = async (
   try {
     const { json } = await SupersetClient.get({
       ...CROSS_ORIGIN,
-      endpoint: '/api/v1/notifications',
+      // In-app items only - Slack rows are that channel's delivery records.
+      endpoint: '/api/v1/notifications?channel=in_app',
       headers: identityHeaders(userId),
     });
     return json as NotificationRecord[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching notifications'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching notifications'),
+    );
     return [];
   }
 };
@@ -89,12 +99,16 @@ export const fetchUnreadNotifications = async (
   try {
     const { json } = await SupersetClient.get({
       ...CROSS_ORIGIN,
-      endpoint: '/api/v1/notifications/unread',
+      endpoint: '/api/v1/notifications/unread?channel=in_app',
       headers: identityHeaders(userId),
     });
     return json as NotificationRecord[];
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching notifications'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching notifications'),
+    );
     return [];
   }
 };
@@ -112,7 +126,11 @@ export const fetchNotificationById = async (
     });
     return json as NotificationRecord;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while fetching notification'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while fetching notification'),
+    );
     return null;
   }
 };
@@ -134,7 +152,11 @@ export const markNotificationRead = async (
     });
     return json as NotificationRecord;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while marking notification read'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while marking notification read'),
+    );
     return null;
   }
 };
@@ -174,7 +196,11 @@ export const fetchSseTicket = async (
     });
     return (json as { ticket: string }).ticket;
   } catch (response) {
-    await reportError(response, addDangerToast, t('Error while connecting to notification stream'));
+    await reportError(
+      response,
+      addDangerToast,
+      t('Error while connecting to notification stream'),
+    );
     return null;
   }
 };

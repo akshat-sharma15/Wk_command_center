@@ -64,6 +64,21 @@ class ActionAlertListView(BaseSupersetView):
         return super().render_app_template()
 
 
+class IncidentDetailView(BaseSupersetView):
+    """Incident (Command Center alert) detail - the drill-through target of
+    notification clicks and Slack incident buttons; rendered client-side."""
+
+    route_base = "/incident"
+    class_permission_name = "Action"
+
+    @expose("/<alert_id>")
+    @has_access
+    @permission_name("read")
+    # pylint: disable=unused-argument
+    def show(self, alert_id: str) -> FlaskResponse:
+        return super().render_app_template()
+
+
 class NotificationDetailView(BaseSupersetView):
     route_base = "/notification"
     class_permission_name = "Action"

@@ -113,8 +113,11 @@ export const disconnectSlack = async (
       parseMethod: 'raw',
     });
     return true;
-  } catch (response) {
-    await reportError(response, addDangerToast, t('Error while disconnecting Slack'));
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 204) {
+      return true;
+    }
+    await reportError(error, addDangerToast, t('Error while disconnecting Slack'));
     return false;
   }
 };

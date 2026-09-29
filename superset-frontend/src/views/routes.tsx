@@ -205,6 +205,11 @@ const ActionAlertList = lazy(
     ),
 );
 
+const IncidentDetail = lazy(
+  () =>
+    import(/* webpackChunkName: "IncidentDetail" */ 'src/pages/IncidentDetail'),
+);
+
 const NotificationDetail = lazy(
   () =>
     import(
@@ -384,6 +389,10 @@ export const routes: Routes = [
   {
     path: '/notification/:notificationId',
     Component: NotificationDetail,
+  },
+  {
+    path: '/incident/:alertId',
+    Component: IncidentDetail,
   },
 ];
 

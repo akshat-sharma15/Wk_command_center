@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useState, useEffect } from 'react';
+import { t } from '@apache-superset/core/translation';
 import { styled, css, useTheme } from '@apache-superset/core/theme';
 import { ensureStaticPrefix } from 'src/utils/assetUrl';
 import { ensureAppRoot } from 'src/utils/pathUtils';
@@ -36,6 +37,11 @@ import {
 } from 'src/types/bootstrapTypes';
 import RightMenu from './RightMenu';
 import { NAVBAR_MENU_POPUP_OFFSET } from './commonMenuData';
+import {
+  ACTION_ALERT_PATH,
+  ACTION_EVENT_PATH,
+  ACTION_INTEGRATION_PATH,
+} from './actionMenuData';
 
 interface MenuProps {
   data: MenuData;
@@ -44,8 +50,8 @@ interface MenuProps {
 
 const StyledHeader = styled.header`
   ${({ theme }) => css`
-    background-color: ${theme.colorBgContainer};
-    border-bottom: 1px solid ${theme.colorBorderSecondary};
+    background-color: ${theme.colorPrimary};
+    color: ${theme.colorWhite};
     padding: 0 ${theme.sizeUnit * 4}px;
     z-index: 10;
 
@@ -56,18 +62,42 @@ const StyledHeader = styled.header`
     .caret {
       display: none;
     }
+
+    /* Solid brand-color header bar (matches the reference site's nav
+       treatment): everything that isn't a self-contained badge/button
+       inherits white text/icon color from here instead of the app's
+       default dark-on-white nav styling. */
+    a,
+    .anticon {
+      color: ${theme.colorWhite};
+    }
+
+    /* buttonStyle="primary" renders a colorPrimary-filled button, which
+       would be invisible on a colorPrimary header - invert to a white
+       outline instead so it still reads as a button here. */
+    .ant-btn-primary {
+      background-color: transparent;
+      border-color: ${theme.colorWhite};
+      color: ${theme.colorWhite};
+
+      &:hover,
+      &:focus {
+        background-color: ${theme.colorWhite};
+        border-color: ${theme.colorWhite};
+        color: ${theme.colorPrimary};
+      }
+    }
   `}
 `;
 
 const StyledBrandText = styled.div`
   ${({ theme }) => css`
-    border-left: 1px solid ${theme.colorBorderSecondary};
-    border-right: 1px solid ${theme.colorBorderSecondary};
     height: 100%;
-    color: ${theme.colorText};
+    color: ${theme.colorWhite};
     padding-left: ${theme.sizeUnit * 4}px;
     padding-right: ${theme.sizeUnit * 4}px;
     font-size: ${theme.fontSizeLG}px;
+    font-weight: ${theme.fontWeightStrong};
     float: left;
     display: flex;
     flex-direction: column;
@@ -88,11 +118,44 @@ const StyledBrandText = styled.div`
 
 const StyledMainNav = styled(MainNav)`
   ${({ theme }) => css`
+    /* Allow the nav to actually shrink within its flex row instead of
+       forcing siblings (brand text, right-side controls) to overlap or
+       wrap - flex items default to a content-based min-width otherwise. */
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+
     .ant-menu-item .ant-menu-item-icon + span,
     .ant-menu-submenu-title .ant-menu-item-icon + span,
     .ant-menu-item .anticon + span,
     .ant-menu-submenu-title .anticon + span {
       margin-inline-start: 0;
+    }
+
+    /* On the solid brand-color header, every item reads as translucent
+       white by default and solid white on hover/active - mirrors the
+       reference site's nav (white text directly on a green bar), rather
+       than this app's usual white-bg/green-accent convention. */
+    &.ant-menu-horizontal {
+      background: transparent;
+      border-bottom: none;
+    }
+
+    .ant-menu-item,
+    .ant-menu-submenu-title,
+    .ant-menu-title-content {
+      color: ${theme.colorTextLightSolid};
+    }
+
+    .ant-menu-item:hover,
+    .ant-menu-item-selected,
+    .ant-menu-item-active {
+      color: ${theme.colorTextLightSolid} !important;
+      font-weight: ${theme.fontWeightStrong};
+    }
+
+    .ant-menu-item::after {
+      border-bottom-color: ${theme.colorWhite} !important;
     }
 
     .ant-menu-submenu.ant-menu-submenu-horizontal {
@@ -106,40 +169,32 @@ const StyledMainNav = styled(MainNav)`
         gap: ${theme.sizeUnit * 2}px;
         flex-direction: row-reverse;
         align-items: center;
-        height: 100%;
+        height: calc(100% - ${theme.sizeUnit * 3}px);
+        margin: ${theme.sizeUnit * 1.5}px 0;
         padding: 0 ${theme.sizeUnit * 4}px;
+        border-radius: ${theme.borderRadius}px;
+        transition: background-color 0.2s ease-out;
+      }
+
+      /* Same "highlighted pill" treatment already used for the active item
+         in the mobile inline menu - a background tint is robust against
+         antd's own internal selected/hover styles in a way a border or
+         custom ::after here has proven not to be. */
+      &:hover .ant-menu-submenu-title,
+      &.ant-menu-submenu-active .ant-menu-submenu-title,
+      &.ant-menu-submenu-open .ant-menu-submenu-title,
+      &.ant-menu-submenu-selected .ant-menu-submenu-title {
+        background-color: rgb(from ${theme.colorWhite} r g b / 0.16);
       }
 
       &:hover,
-      &.ant-menu-submenu-active {
+      &.ant-menu-submenu-active,
+      &.ant-menu-submenu-open,
+      &.ant-menu-submenu-selected {
         .ant-menu-title-content {
-          color: ${theme.colorPrimary};
+          color: ${theme.colorWhite};
         }
       }
-
-      &::after {
-        content: '';
-        position: absolute;
-        width: 98%;
-        height: 2px;
-        background-color: ${theme.colorPrimaryBorderHover};
-        bottom: ${theme.sizeUnit / 8}px;
-        left: 1%;
-        right: auto;
-        inset-inline-start: 1%;
-        inset-inline-end: auto;
-        transform: scale(0);
-        transition: 0.2s all ease-out;
-      }
-
-      &:hover::after,
-      &.ant-menu-submenu-open::after {
-        transform: scale(1);
-      }
-    }
-
-    .ant-menu-submenu-selected.ant-menu-submenu-horizontal::after {
-      transform: scale(1);
     }
   `}
 `;
@@ -207,6 +262,9 @@ export function Menu({
     Datasets = '/tablemodelview',
     SqlLab = '/sqllab',
     SavedQueries = '/savedqueryview',
+    Integration = '/integration',
+    Event = '/event',
+    Alert = '/action-alert',
   }
 
   const defaultTabSelection: string[] = [];
@@ -226,6 +284,11 @@ export function Menu({
         break;
       case path.startsWith(Paths.SqlLab) || path.startsWith(Paths.SavedQueries):
         setActiveTabs(['SQL']);
+        break;
+      case path.startsWith(Paths.Integration) ||
+        path.startsWith(Paths.Event) ||
+        path.startsWith(Paths.Alert):
+        setActiveTabs(['Action']);
         break;
       default:
         setActiveTabs(defaultTabSelection);
@@ -287,52 +350,52 @@ export function Menu({
       children: childItems,
     };
   };
-  const renderBrand = () => {
-    let link;
-    if (theme.brandLogoUrl) {
-      link = (
-        <StyledBrandWrapper margin={theme.brandLogoMargin}>
-          <StyledBrandLink href={ensureAppRoot(theme.brandLogoHref)}>
-            <StyledImage
-              preview={false}
-              src={ensureStaticPrefix(theme.brandLogoUrl)}
-              alt={theme.brandLogoAlt || 'Apache Superset'}
-              height={theme.brandLogoHeight}
-            />
-          </StyledBrandLink>
-        </StyledBrandWrapper>
-      );
-    } else if (isFrontendRoute(window.location.pathname)) {
-      // ---------------------------------------------------------------------------------
-      // TODO: deprecate this once Theme is fully rolled out
-      // Kept as is for backwards compatibility with the old theme system / superset_config.py
-      link = (
-        <GenericLink className="navbar-brand" to={brand.path}>
-          <StyledImage
-            preview={false}
-            src={ensureStaticPrefix(brand.icon)}
-            alt={brand.alt}
-          />
-        </GenericLink>
-      );
-    } else {
-      link = (
-        <Typography.Link
-          className="navbar-brand"
-          href={ensureAppRoot(brand.path)}
-          tabIndex={-1}
-        >
-          <StyledImage
-            preview={false}
-            src={ensureStaticPrefix(brand.icon)}
-            alt={brand.alt}
-          />
-        </Typography.Link>
-      );
-    }
-    // ---------------------------------------------------------------------------------
-    return <>{link}</>;
-  };
+  // const renderBrand = () => {
+  //   let link;
+  //   if (theme.brandLogoUrl) {
+  //     link = (
+  //       <StyledBrandWrapper margin={theme.brandLogoMargin}>
+  //         <StyledBrandLink href={ensureAppRoot(theme.brandLogoHref)}>
+  //           <StyledImage
+  //             preview={false}
+  //             src={ensureStaticPrefix(theme.brandLogoUrl)}
+  //             alt={theme.brandLogoAlt || 'Apache Superset'}
+  //             height={theme.brandLogoHeight}
+  //           />
+  //         </StyledBrandLink>
+  //       </StyledBrandWrapper>
+  //     );
+  //   } else if (isFrontendRoute(window.location.pathname)) {
+  //     // ---------------------------------------------------------------------------------
+  //     // TODO: deprecate this once Theme is fully rolled out
+  //     // Kept as is for backwards compatibility with the old theme system / superset_config.py
+  //     link = (
+  //       <GenericLink className="navbar-brand" to={brand.path}>
+  //         <StyledImage
+  //           preview={false}
+  //           src={ensureStaticPrefix(brand.icon)}
+  //           alt={brand.alt}
+  //         />
+  //       </GenericLink>
+  //     );
+  //   } else {
+  //     link = (
+  //       <Typography.Link
+  //         className="navbar-brand"
+  //         href={ensureAppRoot(brand.path)}
+  //         tabIndex={-1}
+  //       >
+  //         <StyledImage
+  //           preview={false}
+  //           src={ensureStaticPrefix(brand.icon)}
+  //           alt={brand.alt}
+  //         />
+  //       </Typography.Link>
+  //     );
+  //   }
+  //   // ---------------------------------------------------------------------------------
+  //   return <>{link}</>;
+  // };
   return (
     <StyledHeader className="top" id="main-menu" role="navigation">
       <StyledRow>
@@ -343,7 +406,7 @@ export function Menu({
             title={brand.tooltip}
             arrow={{ pointAtCenter: true }}
           >
-            {renderBrand()}
+            {/* {renderBrand()} */}
           </Tooltip>
           {brand.text && (
             <StyledBrandText>
@@ -355,7 +418,6 @@ export function Menu({
             data-test="navbar-top"
             className="main-nav"
             selectedKeys={activeTabs}
-            disabledOverflow
             items={menu.map(item => {
               const props = {
                 ...item,
@@ -434,6 +496,31 @@ export default function MenuWrapper({ data, ...rest }: MenuProps) {
       settings.push(newItem);
     }
   });
+
+  // Insert the "Action" tab (Integration/Event/Alert) beside the SQL tab.
+  // This is added client-side, rather than via the backend menu config,
+  // so it stays isolated from the existing SQL/Dataset menu wiring. Like
+  // every other tab, it must only show once the user is logged in -
+  // gate it the same way RightMenu.tsx gates its own items.
+  if (!newMenuData.navbar_right.user_is_anonymous) {
+    const actionMenuItem: MenuObjectProps = {
+      name: 'Actions',
+      label: t('Action'),
+      childs: [
+        {
+          name: 'Integration',
+          label: t('Integration'),
+          url: ACTION_INTEGRATION_PATH,
+        },
+        { name: 'Event', label: t('Incident'), url: ACTION_EVENT_PATH },
+        { name: 'Alert', label: t('Alert Rule'), url: ACTION_ALERT_PATH },
+      ],
+    };
+    const sqlMenuIndex = cleanedMenu.findIndex(item => item.label === 'SQL');
+    const insertAt =
+      sqlMenuIndex === -1 ? cleanedMenu.length : sqlMenuIndex + 1;
+    cleanedMenu.splice(insertAt, 0, actionMenuItem);
+  }
 
   newMenuData.menu = cleanedMenu;
   newMenuData.settings = settings;

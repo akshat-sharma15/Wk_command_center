@@ -156,6 +156,7 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         from superset.async_events.api import AsyncEventsRestApi
         from superset.available_domains.api import AvailableDomainsRestApi
         from superset.cachekeys.api import CacheRestApi
+        from superset.chart_chat.api import ChartChatRestApi
         from superset.charts.api import ChartRestApi
         from superset.charts.data.api import ChartDataRestApi
         from superset.css_templates.api import CssTemplateRestApi
@@ -188,9 +189,18 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         from superset.sqllab.permalink.api import SqlLabPermalinkRestApi
         from superset.tags.api import TagRestApi
         from superset.themes.api import ThemeRestApi
+        from superset.views.actions import (
+            ActionAlertListView,
+            EventListView,
+            IntegrationListView,
+            IncidentDetailView,
+            NotificationDetailView,
+        )
         from superset.views.alerts import AlertView, ReportView
         from superset.views.all_entities import TaggedObjectsModelView
-        from superset.views.annotations import AnnotationLayerView
+        # AnnotationLayerView is unused while its Settings-menu registration
+        # below is commented out.
+        # from superset.views.annotations import AnnotationLayerView
         from superset.views.api import Api
         from superset.views.chart.views import SliceModelView
         from superset.views.core import Superset
@@ -245,6 +255,7 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         appbuilder.add_api(AvailableDomainsRestApi)
         appbuilder.add_api(CacheRestApi)
         appbuilder.add_api(ChartRestApi)
+        appbuilder.add_api(ChartChatRestApi)
         appbuilder.add_api(ChartDataRestApi)
         appbuilder.add_api(CssTemplateRestApi)
         appbuilder.add_api(ThemeRestApi)
@@ -432,12 +443,17 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         # Setup views with no menu
         #
         appbuilder.add_view_no_menu(Api)
+        appbuilder.add_view_no_menu(ActionAlertListView)
         appbuilder.add_view_no_menu(Dashboard)
         appbuilder.add_view_no_menu(Datasource)
         appbuilder.add_view_no_menu(DatasetEditor)
         appbuilder.add_view_no_menu(EmbeddedView)
+        appbuilder.add_view_no_menu(EventListView)
         appbuilder.add_view_no_menu(ExploreView)
         appbuilder.add_view_no_menu(ExplorePermalinkView)
+        appbuilder.add_view_no_menu(IntegrationListView)
+        appbuilder.add_view_no_menu(NotificationDetailView)
+        appbuilder.add_view_no_menu(IncidentDetailView)
         appbuilder.add_view_no_menu(SavedQueryView)
         appbuilder.add_view_no_menu(SqllabView)
         appbuilder.add_view_no_menu(Superset)
@@ -518,16 +534,18 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
             menu_cond=lambda: feature_flag_manager.is_feature_enabled("ALERT_REPORTS"),
         )
 
-        appbuilder.add_view(
-            AnnotationLayerView,
-            "Annotation Layers",
-            label=_("Annotation Layers"),
-            href="AnnotationLayerView.list",
-            icon="fa-comment",
-            category_icon="",
-            category="Manage",
-            category_label=_("Manage"),
-        )
+        # Annotation Layers is hidden from the Settings menu for now - not
+        # deleted, so it can come back by uncommenting this registration.
+        # appbuilder.add_view(
+        #     AnnotationLayerView,
+        #     "Annotation Layers",
+        #     label=_("Annotation Layers"),
+        #     href="AnnotationLayerView.list",
+        #     icon="fa-comment",
+        #     category_icon="",
+        #     category="Manage",
+        #     category_label=_("Manage"),
+        # )
 
         appbuilder.add_view(
             RowLevelSecurityView,

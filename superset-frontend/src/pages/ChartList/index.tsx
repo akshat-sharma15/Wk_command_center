@@ -78,6 +78,7 @@ import { nativeFilterGate } from 'src/dashboard/components/nativeFilters/utils';
 import { TagTypeEnum } from 'src/components/Tag/TagType';
 import { loadTags } from 'src/components/Tag/utils';
 import ChartCard from 'src/features/charts/ChartCard';
+import { openChartChat } from 'src/features/actions/chartChatBus';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { findPermission } from 'src/utils/findPermission';
 import { QueryObjectColumns } from 'src/views/CRUD/types';
@@ -508,12 +509,33 @@ function ChartList(props: ChartListProps) {
             );
           const openEditModal = () => openChartEditModal(original);
           const handleExport = () => handleBulkChartExport([original]);
-          if (!canEdit && !canDelete && !canExport) {
-            return null;
-          }
+          const askAiAboutChart = () =>
+            openChartChat({
+              chartId: original.id,
+              chartName: original.slice_name,
+            });
 
           return (
             <StyledActions className="actions">
+              {/* Available for every chart regardless of edit/export/delete
+                  permissions - access to the chart and its dataset is checked
+                  server-side (see superset/chart_chat/api.py). */}
+              <Tooltip
+                id="ai-chat-action-tooltip"
+                title={t('Ask AI')}
+                placement="bottom"
+              >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="action-button"
+                  aria-label={t('Ask AI')}
+                  onClick={askAiAboutChart}
+                  data-test="chart-ai-chat-action"
+                >
+                  <Icons.CommentOutlined iconSize="l" />
+                </span>
+              </Tooltip>
               {canEdit && (
                 <Tooltip
                   id="edit-action-tooltip"
@@ -582,7 +604,8 @@ function ChartList(props: ChartListProps) {
         id: 'actions',
         size: 'lg',
         disableSortBy: true,
-        hidden: !canEdit && !canDelete,
+        // Always shown: the AI chat action above is available to any user who
+        // can read the chart, even without edit/delete rights.
       },
       {
         accessor: QueryObjectColumns.ChangedBy,
@@ -716,19 +739,21 @@ function ChartList(props: ChartListProps) {
         dropdownStyle: { minWidth: WIDER_DROPDOWN_WIDTH },
       },
       ...(userId ? [favoritesFilter] : []),
-      {
-        Header: t('Certified'),
-        key: 'certified',
-        id: 'id',
-        urlDisplay: 'certified',
-        input: 'select',
-        operator: FilterOperator.ChartIsCertified,
-        unfilteredLabel: t('Any'),
-        selects: [
-          { label: t('Yes'), value: true },
-          { label: t('No'), value: false },
-        ],
-      },
+      // The "Certified" filter is hidden for now - not deleted, so it can
+      // come back by uncommenting this entry.
+      // {
+      //   Header: t('Certified'),
+      //   key: 'certified',
+      //   id: 'id',
+      //   urlDisplay: 'certified',
+      //   input: 'select',
+      //   operator: FilterOperator.ChartIsCertified,
+      //   unfilteredLabel: t('Any'),
+      //   selects: [
+      //     { label: t('Yes'), value: true },
+      //     { label: t('No'), value: false },
+      //   ],
+      // },
       {
         Header: t('Modified by'),
         key: 'changed_by',
@@ -841,7 +866,7 @@ function ChartList(props: ChartListProps) {
   if (canDelete || canExport) {
     subMenuButtons.push({
       name: t('Bulk select'),
-      buttonStyle: 'secondary',
+      buttonStyle: 'primary',
       'data-test': 'bulk-select',
       onClick: toggleBulkSelect,
     });

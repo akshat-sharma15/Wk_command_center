@@ -322,7 +322,7 @@ function RowLevelSecurityList(props: RLSProps) {
   if (canWrite) {
     subMenuButtons.push({
       name: t('Bulk select'),
-      buttonStyle: 'secondary',
+      buttonStyle: 'primary',
       'data-test': 'bulk-select',
       onClick: toggleBulkSelect,
     });

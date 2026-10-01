@@ -187,6 +187,43 @@ const RedirectWarning = lazy(
     ),
 );
 
+const IntegrationList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "IntegrationList" */ 'src/pages/IntegrationList'
+    ),
+);
+
+const EventList = lazy(
+  () => import(/* webpackChunkName: "EventList" */ 'src/pages/EventList'),
+);
+
+const ActionAlertList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "ActionAlertList" */ 'src/pages/ActionAlertList'
+    ),
+);
+
+const IncidentDetail = lazy(
+  () =>
+    import(/* webpackChunkName: "IncidentDetail" */ 'src/pages/IncidentDetail'),
+);
+
+const NotificationDetail = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "NotificationDetail" */ 'src/pages/NotificationDetail'
+    ),
+);
+
+const NotificationList = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "NotificationList" */ 'src/pages/NotificationList'
+    ),
+);
+
 type Routes = {
   path: string;
   Component: ComponentType;
@@ -329,6 +366,33 @@ export const routes: Routes = [
   {
     path: '/registrations/',
     Component: UserRegistrations,
+  },
+  {
+    path: '/integration/list/',
+    Component: IntegrationList,
+  },
+  {
+    path: '/event/list/',
+    Component: EventList,
+  },
+  {
+    path: '/action-alert/list/',
+    Component: ActionAlertList,
+  },
+  {
+    // Must come before /notification/:notificationId below - Switch takes
+    // the first match, and that dynamic segment would otherwise also match
+    // this path (treating "list" as the id).
+    path: '/notification/list/',
+    Component: NotificationList,
+  },
+  {
+    path: '/notification/:notificationId',
+    Component: NotificationDetail,
+  },
+  {
+    path: '/incident/:alertId',
+    Component: IncidentDetail,
   },
 ];
 

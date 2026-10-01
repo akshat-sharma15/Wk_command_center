@@ -37,11 +37,11 @@ const CardContainer = styled.div<{ showThumbnails?: boolean }>`
     grid-gap: ${theme.sizeUnit * 12}px ${theme.sizeUnit * 4}px;
     grid-template-columns: repeat(auto-fit, 300px);
     margin-top: ${theme.sizeUnit * -6}px;
-    padding: ${
-      showThumbnails
-        ? `${theme.sizeUnit * 8 + 3}px ${theme.sizeUnit * 20}px`
-        : `${theme.sizeUnit * 8 + 1}px ${theme.sizeUnit * 20}px`
-    };
+    /* Horizontal gutter is owned by the parent .superset-list-view
+       container (ListView.tsx), so both card and table view modes share
+       the exact same left/right inset - only vertical padding belongs
+       here. */
+    padding: ${showThumbnails ? theme.sizeUnit * 8 + 3 : theme.sizeUnit * 8 + 1}px 0;
   `}
 `;
 

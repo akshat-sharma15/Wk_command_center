@@ -608,19 +608,21 @@ function DashboardList(props: DashboardListProps) {
         dropdownStyle: { minWidth: WIDER_DROPDOWN_WIDTH },
       },
       ...(user?.userId ? [favoritesFilter] : []),
-      {
-        Header: t('Certified'),
-        key: 'certified',
-        id: 'id',
-        urlDisplay: 'certified',
-        input: 'select',
-        operator: FilterOperator.DashboardIsCertified,
-        unfilteredLabel: t('Any'),
-        selects: [
-          { label: t('Yes'), value: true },
-          { label: t('No'), value: false },
-        ],
-      },
+      // The "Certified" filter is hidden for now - not deleted, so it can
+      // come back by uncommenting this entry.
+      // {
+      //   Header: t('Certified'),
+      //   key: 'certified',
+      //   id: 'id',
+      //   urlDisplay: 'certified',
+      //   input: 'select',
+      //   operator: FilterOperator.DashboardIsCertified,
+      //   unfilteredLabel: t('Any'),
+      //   selects: [
+      //     { label: t('Yes'), value: true },
+      //     { label: t('No'), value: false },
+      //   ],
+      // },
       {
         Header: t('Modified by'),
         key: 'changed_by',
@@ -721,7 +723,7 @@ function DashboardList(props: DashboardListProps) {
   if (canDelete || canExport) {
     subMenuButtons.push({
       name: t('Bulk select'),
-      buttonStyle: 'secondary',
+      buttonStyle: 'primary',
       'data-test': 'bulk-select',
       onClick: toggleBulkSelect,
     });

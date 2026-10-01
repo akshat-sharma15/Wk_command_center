@@ -722,7 +722,7 @@ const Header = (): JSX.Element => {
                   css={discardBtnStyle}
                   buttonSize="small"
                   onClick={discardChanges}
-                  buttonStyle="secondary"
+                  buttonStyle="danger"
                   data-test="discard-changes-button"
                   aria-label={t('Discard')}
                 >
@@ -751,7 +751,7 @@ const Header = (): JSX.Element => {
             {NavExtension && <NavExtension />}
             {userCanEdit && (
               <Button
-                buttonStyle="secondary"
+                buttonStyle="primary"
                 onClick={handleEnterEditMode}
                 data-test="edit-dashboard-button"
                 className="action-button"

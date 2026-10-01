@@ -21,6 +21,19 @@ const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 
+// Single source of truth for the Command Center Rails API's origin: reads
+// the same COMMAND_CENTER_API_ORIGIN the backend uses for its CSP allowlist
+// (see superset_config.py) from the repo-root .env, so both sides always
+// agree without editing this in multiple places. dotenv only fills in vars
+// that aren't already set, so this is a no-op if the shell already exported
+// it (e.g. via scripts/dev_env.sh).
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+// src/features/actions/data/*.ts's CORS `host` option wants a bare
+// host[:port], not a full URL - strip the scheme once here.
+const commandCenterApiHost = (
+  process.env.COMMAND_CENTER_API_ORIGIN || 'http://localhost:3001'
+).replace(/^[a-z]+:\/\//i, '');
+
 const { ModuleFederationPlugin } = webpack.container;
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 const CopyPlugin = require('copy-webpack-plugin');
@@ -146,6 +159,9 @@ const plugins = [
     'process.env.REDUX_DEFAULT_MIDDLEWARE':
       process.env.REDUX_DEFAULT_MIDDLEWARE,
     'process.env.SCARF_ANALYTICS': JSON.stringify(process.env.SCARF_ANALYTICS),
+    'process.env.COMMAND_CENTER_API_HOST': JSON.stringify(
+      commandCenterApiHost,
+    ),
   }),
 
   new CopyPlugin({

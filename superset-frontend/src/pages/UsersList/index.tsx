@@ -374,7 +374,7 @@ function UsersList({ user }: UsersListProps) {
       {
         name: t('Bulk select'),
         onClick: toggleBulkSelect,
-        buttonStyle: 'secondary',
+        buttonStyle: 'primary',
       },
       {
         icon: <Icons.PlusOutlined iconSize="m" />,

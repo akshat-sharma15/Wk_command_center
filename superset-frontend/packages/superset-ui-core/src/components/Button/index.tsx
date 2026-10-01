@@ -196,6 +196,15 @@ export function Button(props: ButtonProps) {
         ...(effectiveButtonStyle === 'secondary' &&
           !disabled &&
           getSecondaryButtonHoverStyles(theme)),
+        // A white border on the solid-green primary button gives it a
+        // defined edge instead of blending into whatever it sits on
+        // (e.g. the green header bar) - antd's own solid-variant border
+        // otherwise matches the fill color, so this needs to be explicit.
+      ...(effectiveButtonStyle === 'primary' &&
+  !disabled && {
+    color: `${theme.colorWhite} !important`,
+    borderColor: `${theme.colorWhite} !important`,
+  }),
       }}
       icon={icon}
       {...restProps}

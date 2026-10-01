@@ -67,15 +67,18 @@ const StyledTable = styled(Table)<{
     }
 
     .actions {
-      opacity: 0;
       font-size: ${theme.fontSizeXL}px;
       display: flex;
       white-space: nowrap;
       min-width: 100px;
       .action-button {
         margin-right: ${theme.sizeUnit * 2}px;
+        padding: ${theme.sizeUnit}px;
+        border-radius: ${theme.borderRadius}px;
         cursor: pointer;
+        transition: background-color ${theme.motionDurationMid} ease-in;
         &:hover {
+          background-color: ${theme.colorPrimaryBg};
           path {
             fill: ${theme.colorPrimary};
           }
@@ -85,13 +88,6 @@ const StyledTable = styled(Table)<{
 
     .ant-table-column-title {
       line-height: initial;
-    }
-
-    .ant-table-row:hover {
-      .actions {
-        opacity: 1;
-        transition: opacity ease-in ${theme.motionDurationMid};
-      }
     }
 
     .ant-table-row.table-row-highlighted > td.ant-table-cell,

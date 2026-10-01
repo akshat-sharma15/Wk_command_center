@@ -61,6 +61,7 @@ import { usePermissions } from 'src/hooks/usePermissions';
 import { useDatasetDrillInfo } from 'src/hooks/apiResources/datasets';
 import { ResourceStatus } from 'src/hooks/apiResources/apiResources';
 import { useCrossFiltersScopingModal } from '../nativeFilters/FilterBar/CrossFilters/ScopingModal/useCrossFiltersScopingModal';
+import { openChartChat } from 'src/features/actions/chartChatBus';
 import { ViewResultsModalTrigger } from './ViewResultsModalTrigger';
 import { Global } from '@emotion/react';
 import { fullscreenStyles } from './Styles';
@@ -641,6 +642,28 @@ const SliceHeaderControls = (
           }}
         />
       )}
+      <Tooltip title={t('Ask AI')}>
+        <Button
+          buttonStyle="link"
+          aria-label={t('Ask AI')}
+          data-test="slice-header-ai-chat-action"
+          onClick={() =>
+            openChartChat({
+              chartId: slice.slice_id,
+              chartName: slice.slice_name,
+            })
+          }
+          css={css`
+            padding: ${theme.sizeUnit * 2}px;
+            padding-right: 0px;
+          `}
+        >
+          <Icons.CommentOutlined
+            iconSize="xl"
+            iconColor={theme.colorTextLabel}
+          />
+        </Button>
+      </Tooltip>
       <NoAnimationDropdown
         popupRender={() => (
           <Menu

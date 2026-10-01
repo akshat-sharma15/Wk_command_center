@@ -29,6 +29,8 @@ import { Layout, Loading } from '@superset-ui/core/components';
 import { setupAGGridModules } from '@superset-ui/core/components/ThemedAgGridReact';
 import { ErrorBoundary } from 'src/components';
 import Menu from 'src/features/home/Menu';
+import AiChatWidget from 'src/features/actions/AiChatWidget';
+import NotificationBell from 'src/features/actions/NotificationBell';
 import getBootstrapData, { applicationRoot } from 'src/utils/getBootstrapData';
 import ToastContainer from 'src/components/MessageToasts/ToastContainer';
 import setupApp from 'src/setup/setupApp';
@@ -106,6 +108,8 @@ const App = () => (
         </Switch>
       </ExtensionsStartup>
       <ToastContainer />
+      <NotificationBell />
+      <AiChatWidget />
     </RootContextProviders>
   </Router>
 );

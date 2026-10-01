@@ -86,4 +86,13 @@ echo "==> Starting frontend dev server on :${FRONTEND_PORT}"
 (cd superset-frontend && npm run dev-server) &
 pids+=("$!")
 
-wait -n "${pids[@]}"
+# `wait -n` needs Bash >= 4.3; macOS ships 3.2, so poll instead.
+while true; do
+  for pid in "${pids[@]}"; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid"
+      exit $?
+    fi
+  done
+  sleep 1
+done

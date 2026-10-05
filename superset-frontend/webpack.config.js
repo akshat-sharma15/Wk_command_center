@@ -21,18 +21,24 @@ const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 
-// Single source of truth for the Command Center Rails API's origin: reads
-// the same COMMAND_CENTER_API_ORIGIN the backend uses for its CSP allowlist
-// (see superset_config.py) from the repo-root .env, so both sides always
-// agree without editing this in multiple places. dotenv only fills in vars
-// that aren't already set, so this is a no-op if the shell already exported
-// it (e.g. via scripts/dev_env.sh).
+// Single source of truth for the Command Center Rails API's origin(s):
+// reads the same COMMAND_CENTER_API_ORIGIN the backend uses for its CSP
+// allowlist (see superset_config.py) from the repo-root .env, so both
+// sides always agree without editing this in multiple places. dotenv only
+// fills in vars that aren't already set, so this is a no-op if the shell
+// already exported it (e.g. via scripts/dev_env.sh).
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
-// src/features/actions/data/*.ts's CORS `host` option wants a bare
-// host[:port], not a full URL - strip the scheme once here.
+// COMMAND_CENTER_API_ORIGIN is a comma-separated list (local/LAN/remote -
+// see .env.example); this is only the BUILD-TIME default host, used until
+// a runtime override is set via commandCenterHost.ts's ccSetApiHost() in
+// the browser, so only the first origin needs picking here. CORS `host`
+// options want a bare host[:port], not a full URL - strip the scheme too.
 const commandCenterApiHost = (
-  process.env.COMMAND_CENTER_API_ORIGIN || 'http://localhost:3001'
-).replace(/^[a-z]+:\/\//i, '');
+  process.env.COMMAND_CENTER_API_ORIGIN || 'http://182.156.33.77:9012'
+)
+  .split(',')[0]
+  .trim()
+  .replace(/^[a-z]+:\/\//i, '');
 
 const { ModuleFederationPlugin } = webpack.container;
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');

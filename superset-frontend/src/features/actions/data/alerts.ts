@@ -24,13 +24,10 @@ import {
   AlertRuleFieldOption,
   AlertRuleTriggerType,
 } from './types';
+import { CROSS_ORIGIN } from './commandCenterHost';
 
-// See data/events.ts for why this is needed and where the host comes from:
-// the Command Center Rails API is a separate backend/origin from Superset
-// itself.
-const COMMAND_CENTER_API_HOST =
-  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
-const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
+// See ./commandCenterHost for why this is needed, where the host comes
+// from, and how to switch it at runtime.
 
 const describeError = (error: unknown): string =>
   Array.isArray(error) ? error.join(', ') : String(error);

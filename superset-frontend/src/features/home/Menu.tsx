@@ -43,15 +43,27 @@ import {
   ACTION_INTEGRATION_PATH,
 } from './actionMenuData';
 
+// Static, not sourced from Superset's own `brand` bootstrap data (which
+// only carries a single title string) - describes what this fork of
+// Superset actually is, per ARCHITECTURE.md: operational master data,
+// real-time event stream, and alert/notification engine.
+const BRAND_SUBTITLE = t('Business Operations Platform');
+
 interface MenuProps {
   data: MenuData;
   isFrontendRoute?: (path?: string) => boolean;
 }
 
+// A compact header height (antd's own Menu item height token otherwise
+// drives this to 72px, which reads as oversized next to this app's other
+// chrome - see the matching .ant-menu-item override below).
+const HEADER_HEIGHT = 60;
+
 const StyledHeader = styled.header`
   ${({ theme }) => css`
     background-color: ${theme.colorPrimary};
     color: ${theme.colorWhite};
+    height: ${HEADER_HEIGHT}px;
     padding: 0 ${theme.sizeUnit * 4}px;
     z-index: 10;
 
@@ -94,20 +106,37 @@ const StyledBrandText = styled.div`
   ${({ theme }) => css`
     height: 100%;
     color: ${theme.colorWhite};
-    padding-left: ${theme.sizeUnit * 4}px;
+    /* No padding-left here - StyledCol's own flex gap already spaces
+       this from the logo; adding padding on top of that gap was doubling
+       up the visual distance between them. padding-right is kept, to
+       still space this from the nav that follows it. */
     padding-right: ${theme.sizeUnit * 4}px;
-    font-size: ${theme.fontSizeLG}px;
-    font-weight: ${theme.fontWeightStrong};
     float: left;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 2px;
 
     span {
       max-width: ${theme.sizeUnit * 58}px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.2;
+      /* Muted via opacity rather than a second color token/literal -
+         stays tied to the same white used by the title above it. */
+      opacity: 0.75;
     }
 
     @media (max-width: 1127px) {
@@ -139,6 +168,17 @@ const StyledMainNav = styled(MainNav)`
     &.ant-menu-horizontal {
       background: transparent;
       border-bottom: none;
+    }
+
+    /* antd's own default item height (72px) is taller than this header -
+       plain (non-submenu) top-level items don't inherit the header's
+       height the way flex/percentage-sized elements would, since antd
+       sets it as a fixed token value. The submenu-horizontal block below
+       already overrides its own title's height via calc(100%, ...); this
+       does the equivalent for plain items so both match the header. */
+    &.ant-menu-horizontal > .ant-menu-item {
+      height: ${HEADER_HEIGHT}px !important;
+      line-height: ${HEADER_HEIGHT}px !important;
     }
 
     .ant-menu-item,
@@ -229,9 +269,27 @@ const StyledRow = styled(Row)`
 
 const StyledCol = styled(Col)`
   ${({ theme }) => css`
+    /* An explicit height, not reliance on the parent Row's flex-stretch -
+       antd's Row/Col still leaves this at its tallest child's natural
+       content height otherwise (observed: antd Menu's own items want more
+       height than this header's content needs), which then cascades back
+       down through every descendant's height:100%/calc(100%, ...) rule. */
+    height: 100%;
     display: flex;
     gap: ${theme.sizeUnit * 4}px;
     flex-wrap: wrap;
+
+    /* The brand Tooltip wraps renderBrand()'s Fragment in its own plain
+       <span> (antd can't attach a ref to a Fragment directly), which isn't
+       a flex item styled by us and doesn't stretch to this row's height on
+       its own - force it to, and center its content, so the logo lines up
+       vertically with the nav/right-side controls instead of sitting at
+       its own unrelated natural content height. */
+    > span {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
   `}
 `;
 
@@ -350,55 +408,55 @@ export function Menu({
       children: childItems,
     };
   };
-  // const renderBrand = () => {
-  //   let link;
-  //   if (theme.brandLogoUrl) {
-  //     link = (
-  //       <StyledBrandWrapper margin={theme.brandLogoMargin}>
-  //         <StyledBrandLink href={ensureAppRoot(theme.brandLogoHref)}>
-  //           <StyledImage
-  //             preview={false}
-  //             src={ensureStaticPrefix(theme.brandLogoUrl)}
-  //             alt={theme.brandLogoAlt || 'Apache Superset'}
-  //             height={theme.brandLogoHeight}
-  //           />
-  //         </StyledBrandLink>
-  //       </StyledBrandWrapper>
-  //     );
-  //   } else if (isFrontendRoute(window.location.pathname)) {
-  //     // ---------------------------------------------------------------------------------
-  //     // TODO: deprecate this once Theme is fully rolled out
-  //     // Kept as is for backwards compatibility with the old theme system / superset_config.py
-  //     link = (
-  //       <GenericLink className="navbar-brand" to={brand.path}>
-  //         <StyledImage
-  //           preview={false}
-  //           src={ensureStaticPrefix(brand.icon)}
-  //           alt={brand.alt}
-  //         />
-  //       </GenericLink>
-  //     );
-  //   } else {
-  //     link = (
-  //       <Typography.Link
-  //         className="navbar-brand"
-  //         href={ensureAppRoot(brand.path)}
-  //         tabIndex={-1}
-  //       >
-  //         <StyledImage
-  //           preview={false}
-  //           src={ensureStaticPrefix(brand.icon)}
-  //           alt={brand.alt}
-  //         />
-  //       </Typography.Link>
-  //     );
-  //   }
-  //   // ---------------------------------------------------------------------------------
-  //   return <>{link}</>;
-  // };
+  const renderBrand = () => {
+    let link;
+    if (theme.brandLogoUrl) {
+      link = (
+        <StyledBrandWrapper margin={theme.brandLogoMargin}>
+          <StyledBrandLink href={ensureAppRoot(theme.brandLogoHref)}>
+            <StyledImage
+              preview={false}
+              src={ensureStaticPrefix(theme.brandLogoUrl)}
+              alt={theme.brandLogoAlt || 'Apache Superset'}
+              height={theme.brandLogoHeight}
+            />
+          </StyledBrandLink>
+        </StyledBrandWrapper>
+      );
+    } else if (isFrontendRoute(window.location.pathname)) {
+      // ---------------------------------------------------------------------------------
+      // TODO: deprecate this once Theme is fully rolled out
+      // Kept as is for backwards compatibility with the old theme system / superset_config.py
+      link = (
+        <GenericLink className="navbar-brand" to={brand.path}>
+          <StyledImage
+            preview={false}
+            src={ensureStaticPrefix(brand.icon)}
+            alt={brand.alt}
+          />
+        </GenericLink>
+      );
+    } else {
+      link = (
+        <Typography.Link
+          className="navbar-brand"
+          href={ensureAppRoot(brand.path)}
+          tabIndex={-1}
+        >
+          <StyledImage
+            preview={false}
+            src={ensureStaticPrefix(brand.icon)}
+            alt={brand.alt}
+          />
+        </Typography.Link>
+      );
+    }
+    // ---------------------------------------------------------------------------------
+    return <>{link}</>;
+  };
   return (
     <StyledHeader className="top" id="main-menu" role="navigation">
-      <StyledRow>
+      <StyledRow align="stretch">
         <StyledCol md={16} xs={24}>
           <Tooltip
             id="brand-tooltip"
@@ -406,11 +464,12 @@ export function Menu({
             title={brand.tooltip}
             arrow={{ pointAtCenter: true }}
           >
-            {/* {renderBrand()} */}
+            {renderBrand()}
           </Tooltip>
           {brand.text && (
             <StyledBrandText>
-              <span>{brand.text}</span>
+              <span className="brand-title">{brand.text}</span>
+              <span className="brand-subtitle">{BRAND_SUBTITLE}</span>
             </StyledBrandText>
           )}
           <StyledMainNav

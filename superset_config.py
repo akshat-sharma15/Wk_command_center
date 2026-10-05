@@ -150,8 +150,9 @@ def _rebrand_theme(theme: dict | None) -> dict | None:
     branded["token"]["brandAppName"] = _BRAND_NAME
     branded["token"]["brandLogoAlt"] = _BRAND_NAME
     branded["token"]["brandLogoUrl"] = _BRAND_LOGO_WHITE_PATH
-    # Default (24px) reads as a small icon lost in the 63px-tall header bar.
-    branded["token"]["brandLogoHeight"] = "36px"
+    # Sized to nearly fill the 60px header bar (Menu.tsx's HEADER_HEIGHT),
+    # matching the reference design's logo-to-bar proportions.
+    branded["token"]["brandLogoHeight"] = "48px"
     # Clicking the header logo goes straight to the default dashboard, not
     # the Dashboards list or the Home/Welcome page.
     branded["token"]["brandLogoHref"] = _DEFAULT_DASHBOARD_PATH
@@ -189,31 +190,47 @@ THEME_DARK = _rebrand_theme(_DEFAULT_THEME_DARK)
 # connect-src blocks those fetches even though the Rails side allows the
 # request via CORS.
 #
-# COMMAND_CENTER_API_ORIGIN is the single source of truth for that origin -
-# set it once in .env. webpack.config.js reads the same variable (via
-# dotenv) and bakes it into src/features/actions/data/*.ts's
-# COMMAND_CENTER_API_HOST, so the browser's CORS target and this CSP
-# allowlist entry can never drift out of sync with each other.
+# COMMAND_CENTER_API_ORIGIN is a comma-separated list of every origin that
+# backend might run at - set it once in .env, e.g.:
+#   COMMAND_CENTER_API_ORIGIN=http://182.156.33.77:9012,http://192.168.0.253:3001,http://182.156.33.77:9012
+# Every one of them is permanently allowed through CSP below, so switching
+# which one the browser actually talks to (see
+# src/features/actions/data/commandCenterHost.ts - a runtime choice via
+# localStorage, e.g. `ccSetApiHost('182.156.33.77:9012')` in the devtools
+# console) never needs a CSP/config change or a backend restart again.
+# webpack.config.js takes the FIRST entry in this list as its build-time
+# default host (used until a commandCenterHost.ts override is set).
 from superset.config import TALISMAN_CONFIG as _DEFAULT_TALISMAN_CONFIG  # noqa: E402
 from superset.config import (  # noqa: E402
     TALISMAN_DEV_CONFIG as _DEFAULT_TALISMAN_DEV_CONFIG,
 )
 
-_COMMAND_CENTER_API_ORIGIN = os.environ.get(
-    "COMMAND_CENTER_API_ORIGIN", "http://182.156.33.77:9012"
-)
+_COMMAND_CENTER_API_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "COMMAND_CENTER_API_ORIGIN",
+        "http://182.156.33.77:9012,http://192.168.0.253:3001,http://182.156.33.77:9012",
+    ).split(",")
+    if origin.strip()
+]
+# The one origin server-side code (the chart-chat proxy below) actually
+# calls - always the first in the list, matching the frontend's own
+# build-time default in webpack.config.js.
+_COMMAND_CENTER_API_ORIGIN = _COMMAND_CENTER_API_ORIGINS[0]
+
+TALISMAN_ENABLED = True
 
 
-def _allow_command_center_origin(talisman_config: dict) -> dict:
+def _allow_command_center_origins(talisman_config: dict) -> dict:
     config = copy.deepcopy(talisman_config)
-    config["content_security_policy"]["connect-src"].append(
-        _COMMAND_CENTER_API_ORIGIN
+    config["content_security_policy"]["connect-src"].extend(
+        _COMMAND_CENTER_API_ORIGINS
     )
     return config
 
 
-TALISMAN_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_CONFIG)
-TALISMAN_DEV_CONFIG = _allow_command_center_origin(_DEFAULT_TALISMAN_DEV_CONFIG)
+TALISMAN_CONFIG = _allow_command_center_origins(_DEFAULT_TALISMAN_CONFIG)
+TALISMAN_DEV_CONFIG = _allow_command_center_origins(_DEFAULT_TALISMAN_DEV_CONFIG)
 
 # --- Chart-scoped AI chat (superset/chart_chat) ---
 # Unlike the Action tab's direct browser->Rails calls above, chart chat is

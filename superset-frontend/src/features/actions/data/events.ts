@@ -20,22 +20,15 @@ import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
 import { extendedDayjs } from '@superset-ui/core/utils/dates';
 import { EventRecord } from './types';
+import { CROSS_ORIGIN } from './commandCenterHost';
 
 // The Command Center Rails API is a separate backend/origin from Superset
 // itself (see backend ARCHITECTURE.md + config/initializers/cors.rb,
 // which allows this frontend's origin specifically). `host`/`mode` are
 // passed per-call rather than configuring a second SupersetClient
 // instance, since every other call in this app should keep hitting
-// Superset's own backend unaffected.
-//
-// The host itself comes from COMMAND_CENTER_API_ORIGIN in the repo-root
-// .env (baked in at build time by webpack.config.js's DefinePlugin) - the
-// same variable superset_config.py reads for its CSP allowlist, so the two
-// never drift out of sync. Change that one value, restart both dev
-// servers, and every file below picks it up automatically.
-const COMMAND_CENTER_API_HOST =
-  process.env.COMMAND_CENTER_API_HOST || 'localhost:3001';
-const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
+// Superset's own backend unaffected. See ./commandCenterHost for which
+// host that actually is and how to switch it at runtime.
 
 interface BackendEventDefinition {
   id: number;

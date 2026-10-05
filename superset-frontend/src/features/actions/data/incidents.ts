@@ -18,10 +18,10 @@
  */
 import { t } from '@apache-superset/core/translation';
 import { SupersetClient, getClientErrorObject } from '@superset-ui/core';
+import { CROSS_ORIGIN } from './commandCenterHost';
 
-// See data/events.ts: the Command Center Rails API is a separate origin.
-const COMMAND_CENTER_API_HOST = 'localhost:3001';
-const CROSS_ORIGIN = { host: COMMAND_CENTER_API_HOST, mode: 'cors' as const };
+// See ./commandCenterHost for why this is needed, where the host comes
+// from, and how to switch it at runtime.
 
 export interface IncidentPrincipal {
   type: 'user' | 'role';

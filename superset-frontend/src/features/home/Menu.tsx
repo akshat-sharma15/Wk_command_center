@@ -87,13 +87,23 @@ const StyledHeader = styled.header`
     /* buttonStyle="primary" renders a colorPrimary-filled button, which
        would be invisible on a colorPrimary header - invert to a white
        outline instead so it still reads as a button here. */
-    .ant-btn-primary {
+    /* Doubled class outranks antd's own primary hover/active rules. Only
+       :focus-visible gets the filled state - a mouse click leaves plain
+       :focus behind (the button opens a new tab and keeps focus), which
+       would otherwise leave it stuck white. */
+    .ant-btn.ant-btn-primary:not(:disabled) {
       background-color: transparent;
       border-color: ${theme.colorWhite};
       color: ${theme.colorWhite};
+      box-shadow: none;
+
+      .anticon {
+        color: inherit;
+      }
 
       &:hover,
-      &:focus {
+      &:active,
+      &:focus-visible {
         background-color: ${theme.colorWhite};
         border-color: ${theme.colorWhite};
         color: ${theme.colorPrimary};
